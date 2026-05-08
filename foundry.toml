@@ -46,3 +46,6 @@ wrap_comments = true
 [doc]
 out = "docs/book"
 repository = "https://github.com/your-org/defi-superapp"
+
+[rpc_endpoints]
+arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
