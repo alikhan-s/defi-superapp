@@ -208,6 +208,29 @@ contract LPPositionNFTTest is Test {
     }
 
     // -------------------------------------------------------------------------
+    // 11. Burn non-existent token reverts (TokenDoesNotExist in burn)
+    // -------------------------------------------------------------------------
+
+    function test_burn_nonExistentReverts() public {
+        vm.expectRevert(abi.encodeWithSelector(LPPositionNFT.TokenDoesNotExist.selector, 99));
+        nft.burn(99);
+    }
+
+    // -------------------------------------------------------------------------
+    // 12. supportsInterface
+    // -------------------------------------------------------------------------
+
+    function test_supportsInterface_erc721() public view {
+        // ERC-721 interface id
+        assertTrue(nft.supportsInterface(0x80ac58cd));
+    }
+
+    function test_supportsInterface_accessControl() public view {
+        // IAccessControl interface id
+        assertTrue(nft.supportsInterface(0x7965db0b));
+    }
+
+    // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
 
