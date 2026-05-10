@@ -165,6 +165,17 @@ contract PairFactoryTest is Test {
         factory.createPairDeterministic(address(tokenA), address(tokenB), salt);
     }
 
+    function test_createPairDeterministic_create2FailedReverts() public {
+        bytes32 salt = keccak256("force-fail");
+
+        // Plant bytecode at the predicted address so CREATE2 returns address(0)
+        address predicted = factory.computePairAddress(address(tokenA), address(tokenB), salt);
+        vm.etch(predicted, bytes("code"));
+
+        vm.expectRevert(PairFactory.Create2Failed.selector);
+        factory.createPairDeterministic(address(tokenA), address(tokenB), salt);
+    }
+
     // -------------------------------------------------------------------------
     // 4. Multiple pairs
     // -------------------------------------------------------------------------

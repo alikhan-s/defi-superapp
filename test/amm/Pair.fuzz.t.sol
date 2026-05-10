@@ -13,6 +13,10 @@ contract MathWrapper {
     function getAmountOut(uint256 a, uint256 b, uint256 c) external pure returns (uint256) {
         return PairMathYul.getAmountOut(a, b, c);
     }
+
+    function getAmountOutSol(uint256 a, uint256 b, uint256 c) external pure returns (uint256) {
+        return PairMathYul.getAmountOutSol(a, b, c);
+    }
 }
 
 contract PairFuzzTest is Test {
@@ -146,5 +150,12 @@ contract PairFuzzTest is Test {
         // Use external wrapper: vm.expectRevert cannot intercept internal library calls.
         vm.expectRevert(PairMathYul.ZeroInput.selector);
         mathWrapper.getAmountOut(0, rIn, rOut);
+    }
+
+    /// @dev getAmountOutSol reverts with ZeroInput when amountIn == 0.
+    function testFuzz_getAmountOutSol_zeroInputReverts(uint112 rIn, uint112 rOut) public {
+        vm.assume(rIn > 0 && rOut > 0);
+        vm.expectRevert(PairMathYul.ZeroInput.selector);
+        mathWrapper.getAmountOutSol(0, rIn, rOut);
     }
 }
