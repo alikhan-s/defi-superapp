@@ -1,11 +1,11 @@
 pragma solidity ^0.8.24;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract TreasuryV1 is Initializable, UUPSUpgradeable, AccessControlUpgradeable, PausableUpgradeable {
     using SafeERC20 for IERC20;
@@ -32,7 +32,7 @@ contract TreasuryV1 is Initializable, UUPSUpgradeable, AccessControlUpgradeable,
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
-    receive() external payable {}
+    receive() external payable { }
 
     function withdrawETH(address to, uint256 amount) external onlyRole(FUND_MANAGER_ROLE) whenNotPaused {
         if (to == address(0)) revert ZeroAddress();
@@ -40,11 +40,15 @@ contract TreasuryV1 is Initializable, UUPSUpgradeable, AccessControlUpgradeable,
 
         totalETHWithdrawn += amount;
 
-        (bool success, ) = to.call{value: amount}("");
+        (bool success,) = to.call{ value: amount }("");
         if (!success) revert ETHTransferFailed();
     }
 
-    function withdrawERC20(address token, address to, uint256 amount) external onlyRole(FUND_MANAGER_ROLE) whenNotPaused {
+    function withdrawERC20(address token, address to, uint256 amount)
+        external
+        onlyRole(FUND_MANAGER_ROLE)
+        whenNotPaused
+    {
         if (to == address(0)) revert ZeroAddress();
         if (IERC20(token).balanceOf(address(this)) < amount) revert InsufficientBalance();
 
@@ -68,5 +72,5 @@ contract TreasuryV1 is Initializable, UUPSUpgradeable, AccessControlUpgradeable,
         return IERC20(token).balanceOf(address(this));
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) { }
 }

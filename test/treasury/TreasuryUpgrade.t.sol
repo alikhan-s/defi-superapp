@@ -1,13 +1,14 @@
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
-import {TreasuryV1} from "../../src/treasury/TreasuryV1.sol";
-import {TreasuryV2} from "../../src/treasury/TreasuryV2.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Test } from "forge-std/Test.sol";
+import { TreasuryV1 } from "../../src/treasury/TreasuryV1.sol";
+import { TreasuryV2 } from "../../src/treasury/TreasuryV2.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockToken is ERC20 {
-    constructor() ERC20("Mock", "MCK") {}
+    constructor() ERC20("Mock", "MCK") { }
+
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
@@ -16,7 +17,7 @@ contract MockToken is ERC20 {
 contract TreasuryUpgradeTest is Test {
     TreasuryV1 public proxyV1;
     MockToken public token;
-    
+
     address public admin = address(1);
     address public fundManager = address(2);
     address public upgrader = address(3);
@@ -52,7 +53,7 @@ contract TreasuryUpgradeTest is Test {
         assertEq(address(proxyV2).balance, 8 ether);
         assertEq(proxyV2.totalETHWithdrawn(), 2 ether);
         assertTrue(proxyV2.hasRole(proxyV2.FUND_MANAGER_ROLE(), fundManager));
-        
+
         address[] memory tokens = new address[](1);
         tokens[0] = address(token);
         uint256[] memory amounts = new uint256[](1);

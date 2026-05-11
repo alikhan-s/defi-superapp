@@ -1,11 +1,12 @@
 pragma solidity ^0.8.24;
-import {Test} from "forge-std/Test.sol";
-import {TreasuryV1} from "../../src/treasury/TreasuryV1.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Test } from "forge-std/Test.sol";
+import { TreasuryV1 } from "../../src/treasury/TreasuryV1.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockToken is ERC20 {
-    constructor() ERC20("Mock", "MCK") {}
+    constructor() ERC20("Mock", "MCK") { }
+
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
@@ -20,7 +21,7 @@ contract RejectETH {
 contract TreasuryV1Test is Test {
     TreasuryV1 public treasury;
     MockToken public token;
-    
+
     address public admin = address(1);
     address public fundManager = address(2);
     address public upgrader = address(3);
@@ -47,7 +48,7 @@ contract TreasuryV1Test is Test {
     }
 
     function testFuzz_WithdrawETH(uint256 amount) public {
-        vm.assume(amount > 0 && amount < 10000 ether);
+        vm.assume(amount > 0 && amount < 10_000 ether);
         vm.deal(address(treasury), amount);
 
         vm.prank(fundManager);
@@ -66,7 +67,7 @@ contract TreasuryV1Test is Test {
 
     function test_WithdrawERC20() public {
         token.mint(address(treasury), 1000);
-        
+
         vm.prank(fundManager);
         treasury.withdrawERC20(address(token), user, 500);
 
@@ -85,7 +86,7 @@ contract TreasuryV1Test is Test {
 
     function test_PauseBlocksWithdrawals() public {
         vm.deal(address(treasury), 1 ether);
-        
+
         vm.prank(pauser);
         treasury.pause();
 
