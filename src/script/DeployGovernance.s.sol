@@ -43,7 +43,7 @@ contract DeployGovernance is Script {
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
 
-        timelock.renounceRole(timelock.TIMELOCK_ADMIN_ROLE(), deployer);
+        timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), deployer);
 
         treasury.grantRole(treasury.DEFAULT_ADMIN_ROLE(), address(timelock));
         treasury.renounceRole(treasury.DEFAULT_ADMIN_ROLE(), deployer);
@@ -63,4 +63,4 @@ contract DeployGovernance is Script {
 
         console.log("Deployed to:", filePath);
     }
-}
+}   
