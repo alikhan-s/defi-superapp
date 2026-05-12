@@ -175,7 +175,7 @@ contract LendingPool is ReentrancyGuard, Pausable, AccessControl {
 
     function getSupplyValue(address user) public view returns (uint256) {
         if (totalLiquidityShares == 0) return 0;
-        
+
         uint256 simulatedTotalDebt = totalDebt;
         if (block.timestamp > lastUpdate && totalDebt > 0) {
             uint256 dt = block.timestamp - lastUpdate;

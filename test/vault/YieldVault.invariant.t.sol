@@ -25,7 +25,7 @@ contract YieldVaultHandler is Test {
         amount = bound(amount, 1e6, 1_000_000 * 1e6);
         usdc.mint(address(this), amount);
         usdc.approve(address(vault), amount);
-        
+
         uint256 shares = vault.deposit(amount, address(this));
         sumWithdrawable += vault.previewRedeem(shares);
     }
@@ -54,20 +54,9 @@ contract YieldVaultInvariantTest is Test {
         oracle.addFeed(address(weth), address(wethFeed), 86_400);
         oracle.addFeed(address(usdc), address(usdcFeed), 86_400);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            8000, 1000, 100, 1000, address(this)
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 8000, 1000, 100, 1000, address(this));
 
-        vault = new YieldVault(
-            usdc,
-            ILendingPool(address(pool)),
-            "Yield Vault",
-            "yvUSDC",
-            address(this)
-        );
+        vault = new YieldVault(usdc, ILendingPool(address(pool)), "Yield Vault", "yvUSDC", address(this));
 
         handler = new YieldVaultHandler(vault, pool, usdc);
         targetContract(address(handler));
