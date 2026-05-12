@@ -134,7 +134,7 @@ contract GovernanceAttacksTest is Test {
         bool hasVoted = governor.hasVoted(pid, attacker);
         assertTrue(hasVoted);
 
-        (,, uint256 againstVotes, uint256 forVotes, uint256 abstainVotes) = governor.proposalVotes(pid);
+        (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes) = governor.proposalVotes(pid);
         assertEq(forVotes, 0);
     }
 
