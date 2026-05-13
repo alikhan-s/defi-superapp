@@ -26,13 +26,10 @@ contract YieldVault is ERC4626, ReentrancyGuard, Pausable, AccessControl {
 
     event Harvest(uint256 yieldHarvested);
 
-    constructor(
-        IERC20 _asset,
-        ILendingPool _lendingPool,
-        string memory _name,
-        string memory _symbol,
-        address _admin
-    ) ERC4626(_asset) ERC20(_name, _symbol) {
+    constructor(IERC20 _asset, ILendingPool _lendingPool, string memory _name, string memory _symbol, address _admin)
+        ERC4626(_asset)
+        ERC20(_name, _symbol)
+    {
         lendingPool = _lendingPool;
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(STRATEGY_MANAGER_ROLE, _admin);
@@ -73,38 +70,39 @@ contract YieldVault is ERC4626, ReentrancyGuard, Pausable, AccessControl {
         return paused() ? 0 : super.maxRedeem(owner);
     }
 
-    function _deposit(
-        address caller,
-        address receiver,
-        uint256 assets,
-        uint256 shares
-    ) internal virtual override nonReentrant whenNotPaused {
+    function _deposit(address caller, address receiver, uint256 assets, uint256 shares)
+        internal
+        virtual
+        override
+        nonReentrant
+        whenNotPaused
+    {
         super._deposit(caller, receiver, assets, shares);
-        
+
         IERC20(asset()).safeIncreaseAllowance(address(lendingPool), assets);
         lendingPool.supply(assets);
         principalSupplied += assets;
     }
 
-    function _withdraw(
-        address caller,
-        address receiver,
-        address owner,
-        uint256 assets,
-        uint256 shares
-    ) internal virtual override nonReentrant whenNotPaused {
+    function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
+        internal
+        virtual
+        override
+        nonReentrant
+        whenNotPaused
+    {
         uint256 idleAssets = IERC20(asset()).balanceOf(address(this));
         if (idleAssets < assets) {
             uint256 shortfall = assets - idleAssets;
             lendingPool.withdrawAssets(shortfall);
-            
+
             if (principalSupplied >= shortfall) {
                 principalSupplied -= shortfall;
             } else {
                 principalSupplied = 0;
             }
         }
-        
+
         super._withdraw(caller, receiver, owner, assets, shares);
     }
 

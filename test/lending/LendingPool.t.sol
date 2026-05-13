@@ -258,56 +258,49 @@ contract LendingPoolTest is Test {
         vm.stopPrank();
     }
 
-
     function test_nativeEthCollateral() public {
-        LendingPool ethPool = new LendingPool(
-            address(0), address(usdc), address(oracle),
-            8000, 1000, 100, 1000, admin
-        );
+        LendingPool ethPool = new LendingPool(address(0), address(usdc), address(oracle), 8000, 1000, 100, 1000, admin);
         vm.mockCall(
             address(oracle),
-            abi.encodeWithSelector(oracle.getPriceSafe.selector, address(0), 86400),
+            abi.encodeWithSelector(oracle.getPriceSafe.selector, address(0), 86_400),
             abi.encode(2000 * 1e18)
         );
         usdc.mint(address(ethPool), 100_000 * 1e6);
 
         vm.deal(user1, 10 ether);
         vm.startPrank(user1);
-        ethPool.depositCollateral{value: 10 ether}(0);
-        
+        ethPool.depositCollateral{ value: 10 ether }(0);
+
         (uint256 col,,) = ethPool.positions(user1);
         assertEq(col, 10 ether);
 
         ethPool.borrow(5000 * 1e6);
         ethPool.withdrawCollateral(5 ether);
         vm.stopPrank();
-        
+
         assertEq(user1.balance, 5 ether);
-        
+
         // test revert TransferFailed on deposit with ERC20
         vm.deal(user1, 1 ether);
         vm.startPrank(user1);
         vm.expectRevert(LendingPool.TransferFailed.selector);
-        pool.depositCollateral{value: 1 ether}(10 * 1e18);
+        pool.depositCollateral{ value: 1 ether }(10 * 1e18);
         vm.stopPrank();
     }
 
     function test_ethTransferFailed() public {
-        LendingPool ethPool = new LendingPool(
-            address(0), address(usdc), address(oracle),
-            8000, 1000, 100, 1000, admin
-        );
+        LendingPool ethPool = new LendingPool(address(0), address(usdc), address(oracle), 8000, 1000, 100, 1000, admin);
         vm.mockCall(
             address(oracle),
-            abi.encodeWithSelector(oracle.getPriceSafe.selector, address(0), 86400),
+            abi.encodeWithSelector(oracle.getPriceSafe.selector, address(0), 86_400),
             abi.encode(2000 * 1e18)
         );
         RejectETH rejecter = new RejectETH();
         vm.deal(address(rejecter), 10 ether);
-        
+
         vm.prank(address(rejecter));
-        ethPool.depositCollateral{value: 10 ether}(0);
-        
+        ethPool.depositCollateral{ value: 10 ether }(0);
+
         vm.prank(address(rejecter));
         vm.expectRevert(LendingPool.TransferFailed.selector);
         ethPool.withdrawCollateral(10 ether);
@@ -324,16 +317,16 @@ contract LendingPoolTest is Test {
         vm.startPrank(user1);
         vm.expectRevert(LendingPool.ZeroAmount.selector);
         pool.depositCollateral(0);
-        
+
         vm.expectRevert(LendingPool.ZeroAmount.selector);
         pool.withdrawCollateral(0);
-        
+
         vm.expectRevert(LendingPool.ZeroAmount.selector);
         pool.borrow(0);
-        
+
         vm.expectRevert(LendingPool.ZeroAmount.selector);
         pool.repay(0);
-        
+
         vm.expectRevert(LendingPool.ZeroAmount.selector);
         pool.liquidate(user2, 0);
         vm.stopPrank();
@@ -342,7 +335,7 @@ contract LendingPoolTest is Test {
     function test_repay_zeroDebt() public {
         vm.startPrank(user1);
         pool.depositCollateral(10 * 1e18);
-        pool.repay(100); 
+        pool.repay(100);
         vm.stopPrank();
     }
 
@@ -350,7 +343,7 @@ contract LendingPoolTest is Test {
         vm.startPrank(user1);
         pool.depositCollateral(10 * 1e18);
         pool.borrow(1000 * 1e6);
-        pool.repay(2000 * 1e6); 
+        pool.repay(2000 * 1e6);
         (, uint256 debtShares,) = pool.positions(user1);
         assertEq(debtShares, 0);
         vm.stopPrank();
@@ -360,7 +353,7 @@ contract LendingPoolTest is Test {
         vm.startPrank(user1);
         pool.depositCollateral(10 * 1e18);
         vm.stopPrank();
-        
+
         assertEq(pool.healthFactor(user1), type(uint256).max);
     }
 
@@ -369,13 +362,13 @@ contract LendingPoolTest is Test {
         pool.depositCollateral(10 * 1e18);
         pool.borrow(1000 * 1e6);
         vm.stopPrank();
-        
-        wethFeed.setPrice(100 * 1e8); 
-        
+
+        wethFeed.setPrice(100 * 1e8);
+
         vm.startPrank(user2);
-        pool.liquidate(user1, 2000 * 1e6); 
+        pool.liquidate(user1, 2000 * 1e6);
         vm.stopPrank();
-        
+
         (, uint256 debtShares,) = pool.positions(user1);
         assertEq(debtShares, 0);
     }

@@ -36,20 +36,9 @@ contract YieldVaultForkTest is Test {
         oracle.addFeed(address(weth), address(wethFeed), 86_400);
         oracle.addFeed(address(usdc), address(usdcFeed), 86_400);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            8000, 1000, 100, 1000, admin
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 8000, 1000, 100, 1000, admin);
 
-        vault = new YieldVault(
-            usdc,
-            ILendingPool(address(pool)),
-            "Yield Vault",
-            "yvUSDC",
-            admin
-        );
+        vault = new YieldVault(usdc, ILendingPool(address(pool)), "Yield Vault", "yvUSDC", admin);
 
         usdc.mint(user, 10_000 * 1e6);
         vm.prank(user);
@@ -80,7 +69,7 @@ contract YieldVaultForkTest is Test {
         vault.harvest();
 
         // 4.5 Borrower repays loan + interest so pool has liquidity
-        usdc.mint(borrower, 10000 * 1e6); // Give borrower extra for interest
+        usdc.mint(borrower, 10_000 * 1e6); // Give borrower extra for interest
         vm.startPrank(borrower);
         usdc.approve(address(pool), type(uint256).max);
         pool.repay(type(uint256).max);
