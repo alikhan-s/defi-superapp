@@ -5,7 +5,7 @@ import { StdInvariant, Test } from "forge-std/Test.sol";
 import { Pair } from "../../src/amm/Pair.sol";
 import { PairMathYul } from "../../src/amm/PairMathYul.sol";
 import { LPPositionNFT } from "../../src/tokens/LPPositionNFT.sol";
-import { MockERC20 } from "./helpers/MockERC20.sol";
+import { MockERC20 } from "../helpers/MockERC20.sol";
 
 // ---------------------------------------------------------------------------
 // Handler — the fuzzer's entry point for state transitions

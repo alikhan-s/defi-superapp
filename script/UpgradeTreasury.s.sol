@@ -1,8 +1,8 @@
 pragma solidity ^0.8.24;
 
 import { Script, console } from "forge-std/Script.sol";
-import { TreasuryV2 } from "../treasury/TreasuryV2.sol";
-import { TreasuryV1 } from "../treasury/TreasuryV1.sol";
+import { TreasuryV2 } from "../src/treasury/TreasuryV2.sol";
+import { TreasuryV1 } from "../src/treasury/TreasuryV1.sol";
 
 contract UpgradeTreasury is Script {
     function run() external {

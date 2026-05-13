@@ -52,4 +52,4 @@ jobs:
       - name: Coverage summary
         env:
           ARBITRUM_SEPOLIA_RPC_URL: ${{ secrets.ARBITRUM_SEPOLIA_RPC_URL }}
-        run: forge coverage --report summary
+        run: forge coverage --no-match-coverage "(script|test|lib)" --report summary

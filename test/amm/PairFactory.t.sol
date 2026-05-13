@@ -5,7 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import { PairFactory } from "../../src/amm/PairFactory.sol";
 import { Pair } from "../../src/amm/Pair.sol";
 import { LPPositionNFT } from "../../src/tokens/LPPositionNFT.sol";
-import { MockERC20 } from "./helpers/MockERC20.sol";
+import { MockERC20 } from "../helpers/MockERC20.sol";
 
 contract PairFactoryTest is Test {
     // -------------------------------------------------------------------------

@@ -51,8 +51,8 @@ forge test --match-path "test/**/*.t.sol"
 # Format check
 forge fmt --check
 
-# Coverage
-forge coverage --report summary
+# Coverage (canonical command — excludes script/, test/, lib/)
+make coverage
 
 # Start local node
 anvil

@@ -5,7 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import { Pair } from "../../src/amm/Pair.sol";
 import { LPPositionNFT } from "../../src/tokens/LPPositionNFT.sol";
 import { IPairCallee } from "../../src/amm/IPairCallee.sol";
-import { MockERC20 } from "./helpers/MockERC20.sol";
+import { MockERC20 } from "../helpers/MockERC20.sol";
 
 /// @dev Flash-swap callee that repays token0 with the 0.3 % fee required by the K invariant.
 ///      Repay amount: ceil(amount0 * 1000 / 997).

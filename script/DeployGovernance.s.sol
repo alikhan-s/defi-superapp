@@ -1,8 +1,8 @@
 pragma solidity ^0.8.24;
 
 import { Script, console } from "forge-std/Script.sol";
-import { ProtocolTimelock } from "../governance/ProtocolTimelock.sol";
-import { ProtocolGovernor } from "../governance/ProtocolGovernor.sol";
+import { ProtocolTimelock } from "../src/governance/ProtocolTimelock.sol";
+import { ProtocolGovernor } from "../src/governance/ProtocolGovernor.sol";
 import { IVotes } from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
