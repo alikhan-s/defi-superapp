@@ -47,4 +47,20 @@ contract AccessControlAttackTest is Test {
         secureTreasury.withdrawETH(attacker, 10 ether);
         vm.stopPrank();
     }
+
+    /// @dev Cover the failure path of VulnerableTreasury's `require(success)` —
+    ///      recipient is a contract whose receive() reverts, so the call returns false.
+    function test_vulnerable_revertingRecipientFailsCallCheck() public {
+        RevertingRecipient bad = new RevertingRecipient();
+
+        vm.prank(attacker);
+        vm.expectRevert();
+        vulnerable.withdrawETH(address(bad), 1 ether);
+    }
+}
+
+contract RevertingRecipient {
+    receive() external payable {
+        revert("nope");
+    }
 }

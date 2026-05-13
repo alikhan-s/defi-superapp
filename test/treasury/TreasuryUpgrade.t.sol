@@ -73,4 +73,86 @@ contract TreasuryUpgradeTest is Test {
         vm.prank(user);
         proxyV1.upgradeToAndCall(address(implV2), "");
     }
+
+    // ---- TreasuryV2 batchWithdraw coverage ----
+
+    function _upgradeToV2() internal returns (TreasuryV2 v2) {
+        TreasuryV2 implV2 = new TreasuryV2();
+        vm.prank(upgrader);
+        proxyV1.upgradeToAndCall(address(implV2), "");
+        v2 = TreasuryV2(payable(address(proxyV1)));
+    }
+
+    function test_BatchWithdraw_LengthMismatchReverts() public {
+        TreasuryV2 v2 = _upgradeToV2();
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(token);
+        tokens[1] = address(token);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1;
+
+        vm.prank(fundManager);
+        vm.expectRevert(bytes("Length mismatch"));
+        v2.batchWithdrawERC20(tokens, user, amounts);
+    }
+
+    function test_BatchWithdraw_ZeroToReverts() public {
+        TreasuryV2 v2 = _upgradeToV2();
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(token);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1;
+
+        vm.prank(fundManager);
+        vm.expectRevert(TreasuryV1.ZeroAddress.selector);
+        v2.batchWithdrawERC20(tokens, address(0), amounts);
+    }
+
+    function test_BatchWithdraw_InsufficientBalanceReverts() public {
+        TreasuryV2 v2 = _upgradeToV2();
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(token);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1000;
+
+        vm.prank(fundManager);
+        vm.expectRevert(TreasuryV1.InsufficientBalance.selector);
+        v2.batchWithdrawERC20(tokens, user, amounts);
+    }
+
+    function test_BatchWithdraw_NotFundManagerReverts() public {
+        TreasuryV2 v2 = _upgradeToV2();
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(token);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1;
+
+        vm.prank(user);
+        vm.expectRevert();
+        v2.batchWithdrawERC20(tokens, user, amounts);
+    }
+
+    function test_BatchWithdraw_HappyPathTwoTokens() public {
+        TreasuryV2 v2 = _upgradeToV2();
+        MockToken token2 = new MockToken();
+        token.mint(address(v2), 1000);
+        token2.mint(address(v2), 2000);
+
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(token);
+        tokens[1] = address(token2);
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 300;
+        amounts[1] = 700;
+
+        vm.expectEmit(true, false, false, true);
+        emit TreasuryV2.BatchWithdrawal(user, 2, block.timestamp);
+
+        vm.prank(fundManager);
+        v2.batchWithdrawERC20(tokens, user, amounts);
+
+        assertEq(token.balanceOf(user), 300);
+        assertEq(token2.balanceOf(user), 700);
+        assertEq(v2.lastBatchTimestamp(), block.timestamp);
+    }
 }

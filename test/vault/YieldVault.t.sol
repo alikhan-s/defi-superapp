@@ -211,4 +211,44 @@ contract YieldVaultTest is Test {
         vm.expectRevert(); // OZ ERC4626 throws custom error, Pausable throws EnforcedPause. We just expect any revert.
         vault.deposit(1000 * 1e6, user1);
     }
+
+    // ---- Coverage gap closers ----
+
+    function test_unpause_restoresDeposits() public {
+        vault.pause();
+        vault.unpause();
+
+        assertEq(vault.maxDeposit(user1), type(uint256).max);
+
+        vm.prank(user1);
+        uint256 shares = vault.deposit(1000 * 1e6, user1);
+        assertGt(shares, 0);
+    }
+
+    function test_unpause_onlyPauserRole() public {
+        vault.pause();
+        vm.prank(user1);
+        vm.expectRevert();
+        vault.unpause();
+    }
+
+    function test_withdraw_principalLessThanShortfall_clearsToZero() public {
+        // Deposit, accrue interest, repay debt so pool has liquidity to service the redeem.
+        _generateYield();
+
+        // Borrower repays full debt so pool can pay out the full supply value (principal + yield)
+        usdc.mint(borrower, 20_000 * 1e6);
+        vm.startPrank(borrower);
+        usdc.approve(address(pool), type(uint256).max);
+        pool.repay(20_000 * 1e6); // amount clamped to userDebt
+        vm.stopPrank();
+
+        // Redeem all shares — shortfall = principal + accrued interest > principalSupplied
+        uint256 shares = vault.balanceOf(user1);
+        vm.prank(user1);
+        vault.redeem(shares, user1, user1);
+
+        // Hits the `else { principalSupplied = 0; }` branch
+        assertEq(vault.principalSupplied(), 0);
+    }
 }

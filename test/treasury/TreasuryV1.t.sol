@@ -102,4 +102,71 @@ contract TreasuryV1Test is Test {
         assertEq(treasury.balanceOfETH(), 2 ether);
         assertEq(treasury.balanceOfERC20(address(token)), 1000);
     }
+
+    // ---- Coverage gap closers ----
+
+    function test_Initialize_ZeroAdminReverts() public {
+        TreasuryV1 impl = new TreasuryV1();
+        bytes memory data = abi.encodeCall(TreasuryV1.initialize, (address(0)));
+        vm.expectRevert(TreasuryV1.ZeroAddress.selector);
+        new ERC1967Proxy(address(impl), data);
+    }
+
+    function test_WithdrawETH_ZeroToReverts() public {
+        vm.deal(address(treasury), 1 ether);
+        vm.prank(fundManager);
+        vm.expectRevert(TreasuryV1.ZeroAddress.selector);
+        treasury.withdrawETH(address(0), 1 ether);
+    }
+
+    function test_WithdrawETH_InsufficientBalanceReverts() public {
+        vm.deal(address(treasury), 1 ether);
+        vm.prank(fundManager);
+        vm.expectRevert(TreasuryV1.InsufficientBalance.selector);
+        treasury.withdrawETH(user, 2 ether);
+    }
+
+    function test_WithdrawERC20_ZeroToReverts() public {
+        token.mint(address(treasury), 1000);
+        vm.prank(fundManager);
+        vm.expectRevert(TreasuryV1.ZeroAddress.selector);
+        treasury.withdrawERC20(address(token), address(0), 100);
+    }
+
+    function test_WithdrawERC20_InsufficientBalanceReverts() public {
+        token.mint(address(treasury), 100);
+        vm.prank(fundManager);
+        vm.expectRevert(TreasuryV1.InsufficientBalance.selector);
+        treasury.withdrawERC20(address(token), user, 500);
+    }
+
+    function test_WithdrawERC20_RevertsIfNotFundManager() public {
+        token.mint(address(treasury), 1000);
+        vm.expectRevert();
+        vm.prank(user);
+        treasury.withdrawERC20(address(token), user, 100);
+    }
+
+    function test_Unpause_RestoresWithdrawals() public {
+        vm.deal(address(treasury), 1 ether);
+
+        vm.prank(pauser);
+        treasury.pause();
+
+        vm.prank(pauser);
+        treasury.unpause();
+
+        vm.prank(fundManager);
+        treasury.withdrawETH(user, 1 ether);
+        assertEq(user.balance, 1 ether);
+    }
+
+    function test_Unpause_OnlyPauser() public {
+        vm.prank(pauser);
+        treasury.pause();
+
+        vm.expectRevert();
+        vm.prank(user);
+        treasury.unpause();
+    }
 }

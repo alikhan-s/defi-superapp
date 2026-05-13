@@ -58,4 +58,20 @@ contract ReentrancyAttackTest is Test {
         assertEq(token.balanceOf(attacker), 1000 ether);
         assertEq(token.balanceOf(address(vulnerable)), 0);
     }
+
+    /// @dev Cover VulnerablePair.deposit() to round out case-study coverage.
+    ///      Demonstrates that the unsafe pattern accepts deposits prior to attack.
+    function test_vulnerable_depositAccountsReserves() public {
+        MaliciousToken benign = new MaliciousToken();
+        VulnerablePair pool = new VulnerablePair(address(benign));
+        benign.mint(attacker, 100 ether);
+
+        vm.startPrank(attacker);
+        benign.approve(address(pool), 100 ether);
+        pool.deposit(100 ether);
+        vm.stopPrank();
+
+        assertEq(pool.reserve0(), 100 ether);
+        assertEq(benign.balanceOf(address(pool)), 100 ether);
+    }
 }

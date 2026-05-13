@@ -122,4 +122,25 @@ contract FullLifecycleTest is Test {
         treasury.withdrawETH(recipient, 1 ether);
         vm.stopPrank();
     }
+
+    // ---- Coverage gap closers for ProtocolGovernor view overrides ----
+
+    function test_proposalThreshold_externalView() public view {
+        // proposalThreshold = totalSupply / 100 = 3_000_000 / 100 = 30_000 ether
+        assertEq(governor.proposalThreshold(), 30_000 ether);
+    }
+
+    function test_proposalNeedsQueuing_returnsTrueForTimelockedGovernor() public {
+        address[] memory targets = new address[](1);
+        targets[0] = address(treasury);
+        uint256[] memory values = new uint256[](1);
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSelector(treasury.withdrawETH.selector, recipient, 1 ether);
+
+        vm.prank(alice);
+        uint256 proposalId = governor.propose(targets, values, calldatas, "needs queuing");
+
+        // With GovernorTimelockControl, any proposal requires queuing.
+        assertTrue(governor.proposalNeedsQueuing(proposalId));
+    }
 }
