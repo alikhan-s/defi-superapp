@@ -1,10 +1,12 @@
 # Test Inventory
 
-| Category | Description | Count | Minimum Required | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **Unit Tests** | State isolated logic tests across all core contracts. | 68 | 50 | PASS |
-| **Fuzz Tests** | Property-based testing with random inputs (e.g., amounts). | 14 | 10 | PASS |
-| **Invariant Tests** | Stateful fuzzing ensuring K-invariant and Vault state. | 6 | 5 | PASS |
-| **Fork Tests** | Mainnet state forking (Chainlink integration, Arbitrum). | 4 | 3 | PASS |
-| **Security Tests** | Reproduction of attack vectors and mitigations. | 6 | 2 | PASS |
-| **Total** | | **98** | **80** | PASS |
+Counts derived from real `forge test --list` output. Commit: `b0be035`.
+
+| Category | Description | Count | Minimum | Status |
+| --- | --- | --- | --- | --- |
+| **Unit** | `.t.sol` tests outside fuzz / invariant / fork / security suites | 195 | 50 | PASS |
+| **Fuzz** | `*.fuzz.t.sol` files plus `testFuzz_*` functions | 12 | 10 | PASS |
+| **Invariant** | `*.invariant.t.sol` files plus `invariant_*` functions | 6 | 5 | PASS |
+| **Fork** | `*.fork.t.sol` files | 5 | 3 | PASS |
+| **Security** | `test/security/*` | 5 | 2 | PASS |
+| **Total** | | **223** | 80 | PASS |
