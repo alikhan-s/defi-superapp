@@ -378,6 +378,109 @@ contract LendingPoolTest is Test {
         pool.accrueInterest();
         assertEq(pool.totalDebt(), 0);
     }
+
+    // ---- Coverage gap closers ----
+
+    // L131 br4 — supply(0)
+    function test_supply_zeroAmountReverts() public {
+        vm.prank(user1);
+        vm.expectRevert(LendingPool.ZeroAmount.selector);
+        pool.supply(0);
+    }
+
+    // L144-L157 (whole function) + L145 br5 zero shares + L154 br6 happy path (balance >= amount)
+    function test_withdraw_sharesHappyPath() public {
+        // user1 supplies; uses the share-denominated withdraw
+        vm.prank(user1);
+        pool.supply(10_000 * 1e6);
+
+        uint256 shares = pool.liquidityShares(user1);
+        uint256 balanceBefore = usdc.balanceOf(user1);
+
+        vm.prank(user1);
+        uint256 amount = pool.withdraw(shares);
+
+        assertGt(amount, 0);
+        assertEq(usdc.balanceOf(user1) - balanceBefore, amount);
+        assertEq(pool.liquidityShares(user1), 0);
+    }
+
+    // L145 br5 — withdraw(0)
+    function test_withdraw_zeroSharesReverts() public {
+        vm.prank(user1);
+        vm.expectRevert(LendingPool.ZeroAmount.selector);
+        pool.withdraw(0);
+    }
+
+    // L154 br6 — withdraw when pool's debtAsset balance < computed amount
+    function test_withdraw_insufficientBalanceReverts() public {
+        // Supply, then have someone borrow nearly all idle liquidity so withdraw can't be serviced
+        vm.prank(user1);
+        pool.supply(10_000 * 1e6);
+
+        vm.startPrank(user2);
+        pool.depositCollateral(100 * 1e18); // $200k collateral
+        // Pool has 100k seed + 10k supplied = 110k; borrow 109k leaves 1k idle
+        pool.borrow(109_000 * 1e6);
+        vm.stopPrank();
+
+        // Withdrawing all shares maps to ~10k assets — pool only has 1k idle
+        uint256 shares = pool.liquidityShares(user1);
+        vm.prank(user1);
+        vm.expectRevert(LendingPool.TransferFailed.selector);
+        pool.withdraw(shares);
+    }
+
+    // L161 br7 — withdrawAssets(0)
+    function test_withdrawAssets_zeroAmountReverts() public {
+        vm.prank(user1);
+        vm.expectRevert(LendingPool.ZeroAmount.selector);
+        pool.withdrawAssets(0);
+    }
+
+    // L170 br8 — withdrawAssets when pool's balance < amount
+    function test_withdrawAssets_insufficientBalanceReverts() public {
+        vm.prank(user1);
+        pool.supply(10_000 * 1e6);
+
+        vm.startPrank(user2);
+        pool.depositCollateral(100 * 1e18);
+        pool.borrow(109_000 * 1e6);
+        vm.stopPrank();
+
+        // Try to pull out more than the pool currently holds in idle liquidity
+        vm.prank(user1);
+        vm.expectRevert(LendingPool.TransferFailed.selector);
+        pool.withdrawAssets(5000 * 1e6);
+    }
+
+    // L181-L189 + L180 br10 + L184 br11 — getSupplyValue simulates pending interest
+    function test_getSupplyValue_simulatesPendingInterest() public {
+        vm.prank(user1);
+        pool.supply(20_000 * 1e6);
+
+        vm.startPrank(user2);
+        pool.depositCollateral(100 * 1e18);
+        pool.borrow(50_000 * 1e6); // creates totalDebt > 0
+        vm.stopPrank();
+
+        uint256 snapshotBefore = pool.getSupplyValue(user1);
+
+        // Warp without calling accrueInterest — the view must simulate growth
+        vm.warp(block.timestamp + 365 days);
+
+        uint256 snapshotAfter = pool.getSupplyValue(user1);
+        assertGt(snapshotAfter, snapshotBefore, "view must include accrued interest");
+    }
+
+    // L220 br17 — withdrawCollateral when amount exceeds posted collateral
+    function test_withdrawCollateral_insufficientCollateralReverts() public {
+        vm.startPrank(user1);
+        pool.depositCollateral(5 * 1e18);
+        vm.expectRevert(LendingPool.InsufficientCollateral.selector);
+        pool.withdrawCollateral(10 * 1e18);
+        vm.stopPrank();
+    }
 }
 
 contract RejectETH {
