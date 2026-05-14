@@ -1,0 +1,133 @@
+'forge clean' running (wd: /home/user/projects/foundry/defi-superapp)
+'forge config --json' running
+'forge build --build-info --skip ./test/** ./script/** --force' running (wd: /home/user/projects/foundry/defi-superapp)
+INFO:Detectors:
+Detector: missing-zero-check
+LendingPool.constructor(address,address,address,uint256,uint256,uint256,uint256,address)._collateralAsset (src/lending/LendingPool.sol#68) lacks a zero-check on :
+		- collateralAsset = _collateralAsset (src/lending/LendingPool.sol#77)
+LendingPool.constructor(address,address,address,uint256,uint256,uint256,uint256,address)._debtAsset (src/lending/LendingPool.sol#69) lacks a zero-check on :
+		- debtAsset = _debtAsset (src/lending/LendingPool.sol#78)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-zero-address-validation
+INFO:Detectors:
+Detector: calls-loop
+TreasuryV2.batchWithdrawERC20(address[],address,uint256[]) (src/treasury/TreasuryV2.sol#13-29) has external calls inside a loop: IERC20(tokens[i]).balanceOf(address(this)) < amounts[i] (src/treasury/TreasuryV2.sol#22)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation/#calls-inside-a-loop
+INFO:Detectors:
+Detector: reentrancy-benign
+Reentrancy in YieldVault._deposit(address,address,uint256,uint256) (src/vault/YieldVault.sol#73-85):
+	External calls:
+	- lendingPool.supply(assets) (src/vault/YieldVault.sol#83)
+	State variables written after the call(s):
+	- principalSupplied += assets (src/vault/YieldVault.sol#84)
+Reentrancy in Pair.burn(uint256,address) (src/amm/Pair.sol#181-218):
+	External calls:
+	- lpNFT.burn(tokenId) (src/amm/Pair.sol#212)
+	State variables written after the call(s):
+	- _update(IERC20(token0).balanceOf(address(this)),IERC20(token1).balanceOf(address(this))) (src/amm/Pair.sol#216)
+		- _blockTimestampLast = uint32(block.timestamp) (src/amm/Pair.sol#322)
+	- _update(IERC20(token0).balanceOf(address(this)),IERC20(token1).balanceOf(address(this))) (src/amm/Pair.sol#216)
+		- _reserve0 = uint112(balance0) (src/amm/Pair.sol#320)
+	- _update(IERC20(token0).balanceOf(address(this)),IERC20(token1).balanceOf(address(this))) (src/amm/Pair.sol#216)
+		- _reserve1 = uint112(balance1) (src/amm/Pair.sol#321)
+Reentrancy in Pair.mint(address) (src/amm/Pair.sol#137-169):
+	External calls:
+	- tokenId = lpNFT.mint(to,address(this),liquidity) (src/amm/Pair.sol#164)
+	State variables written after the call(s):
+	- _update(balance0,balance1) (src/amm/Pair.sol#167)
+		- _blockTimestampLast = uint32(block.timestamp) (src/amm/Pair.sol#322)
+	- liquidityOf[tokenId] = liquidity (src/amm/Pair.sol#165)
+Reentrancy in Pair.swap(uint256,uint256,address,uint256,bytes) (src/amm/Pair.sol#233-259):
+	External calls:
+	- IPairCallee(to).pairCall(msg.sender,amount0Out,amount1Out,data) (src/amm/Pair.sol#253)
+	State variables written after the call(s):
+	- (amount0In,amount1In) = _settleSwap(reserve0,reserve1,amount0Out,amount1Out) (src/amm/Pair.sol#257)
+		- _blockTimestampLast = uint32(block.timestamp) (src/amm/Pair.sol#322)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-3
+INFO:Detectors:
+Detector: reentrancy-events
+Reentrancy in PairFactory._register(address,address,address,bool) (src/amm/PairFactory.sol#137-147):
+	External calls:
+	- lpNFT.grantRole(keccak256(bytes)(MINTER_ROLE),pair) (src/amm/PairFactory.sol#144)
+	Event emitted after the call(s):
+	- PairCreated(token0,token1,pair,allPairs.length,deterministic) (src/amm/PairFactory.sol#146)
+Reentrancy in YieldVault.harvest() (src/vault/YieldVault.sol#109-116):
+	External calls:
+	- lendingPool.withdrawAssets(yieldToHarvest) (src/vault/YieldVault.sol#113)
+	Event emitted after the call(s):
+	- Harvest(yieldToHarvest) (src/vault/YieldVault.sol#114)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4
+INFO:Detectors:
+Detector: timestamp
+LendingPool.accrueInterest() (src/lending/LendingPool.sol#107-128) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp == lastUpdate (src/lending/LendingPool.sol#108)
+	- totalDebt == 0 (src/lending/LendingPool.sol#112)
+	- availableLiquidity + totalDebt > 0 (src/lending/LendingPool.sol#116)
+LendingPool.supply(uint256) (src/lending/LendingPool.sol#130-142) uses timestamp for comparisons
+	Dangerous comparisons:
+	- totalLiquidityShares == 0 (src/lending/LendingPool.sol#135)
+LendingPool.withdraw(uint256) (src/lending/LendingPool.sol#144-158) uses timestamp for comparisons
+	Dangerous comparisons:
+	- IERC20(debtAsset).balanceOf(address(this)) < amount (src/lending/LendingPool.sol#154)
+LendingPool.getSupplyValue(address) (src/lending/LendingPool.sol#176-194) uses timestamp for comparisons
+	Dangerous comparisons:
+	- totalLiquidityShares == 0 (src/lending/LendingPool.sol#177)
+	- block.timestamp > lastUpdate && totalDebt > 0 (src/lending/LendingPool.sol#180)
+	- availableLiquidity + totalDebt > 0 (src/lending/LendingPool.sol#184)
+LendingPool.withdrawCollateral(uint256) (src/lending/LendingPool.sol#215-232) uses timestamp for comparisons
+	Dangerous comparisons:
+	- healthFactor(msg.sender) < WAD (src/lending/LendingPool.sol#226)
+LendingPool.borrow(uint256) (src/lending/LendingPool.sol#234-251) uses timestamp for comparisons
+	Dangerous comparisons:
+	- healthFactor(msg.sender) < WAD (src/lending/LendingPool.sol#246)
+	- totalDebtShares == 0 (src/lending/LendingPool.sol#240)
+LendingPool.repay(uint256) (src/lending/LendingPool.sol#253-277) uses timestamp for comparisons
+	Dangerous comparisons:
+	- amount == 0 (src/lending/LendingPool.sol#254)
+	- amount >= userDebt (src/lending/LendingPool.sol#263)
+LendingPool.liquidate(address,uint256) (src/lending/LendingPool.sol#279-318) uses timestamp for comparisons
+	Dangerous comparisons:
+	- healthFactor(user) >= WAD (src/lending/LendingPool.sol#283)
+LendingPool.healthFactor(address) (src/lending/LendingPool.sol#320-337) uses timestamp for comparisons
+	Dangerous comparisons:
+	- userDebt == 0 (src/lending/LendingPool.sol#325)
+	- debtValue == 0 (src/lending/LendingPool.sol#333)
+	- totalDebt == 0 (src/lending/LendingPool.sol#324)
+ChainlinkPriceOracle.getPriceSafe(address,uint256) (src/oracle/ChainlinkPriceOracle.sol#151-165) uses timestamp for comparisons
+	Dangerous comparisons:
+	- age > maxStaleness (src/oracle/ChainlinkPriceOracle.sol#161)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#block-timestamp
+INFO:Detectors:
+Detector: assembly
+PairFactory.createPairDeterministic(address,address,bytes32) (src/amm/PairFactory.sol#90-103) uses assembly
+	- INLINE ASM (src/amm/PairFactory.sol#97-99)
+PairMathYul.getAmountOut(uint256,uint256,uint256) (src/amm/PairMathYul.sol#32-44) uses assembly
+	- INLINE ASM (src/amm/PairMathYul.sol#38-43)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#assembly-usage
+INFO:Detectors:
+Detector: low-level-calls
+Low level call in LendingPool._transferCollateral(address,uint256) (src/lending/LendingPool.sol#339-346):
+	- (success,None) = to.call{value: amount}() (src/lending/LendingPool.sol#341)
+Low level call in TreasuryV1.withdrawETH(address,uint256) (src/treasury/TreasuryV1.sol#37-45):
+	- (success,None) = to.call{value: amount}() (src/treasury/TreasuryV1.sol#43)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls
+INFO:Detectors:
+Detector: missing-inheritance
+LendingPool (src/lending/LendingPool.sol#12-347) should inherit from ILendingPool (src/vault/YieldVault.sol#12-16)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-inheritance
+INFO:Detectors:
+Detector: naming-convention
+Variable TreasuryV1.__gap (src/treasury/TreasuryV1.sol#20) is not in mixedCase
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions
+INFO:Detectors:
+Detector: too-many-digits
+PairFactory.createPairDeterministic(address,address,bytes32) (src/amm/PairFactory.sol#90-103) uses literals with too many digits:
+	- initCode = abi.encodePacked(type()(Pair).creationCode,abi.encode(token0,token1,address(lpNFT),pairAdmin)) (src/amm/PairFactory.sol#94-95)
+PairFactory.computePairAddress(address,address,bytes32) (src/amm/PairFactory.sol#111-117) uses literals with too many digits:
+	- initCodeHash = keccak256(bytes)(abi.encodePacked(type()(Pair).creationCode,abi.encode(token0,token1,address(lpNFT),pairAdmin))) (src/amm/PairFactory.sol#113-115)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#too-many-digits
+INFO:Detectors:
+Detector: immutable-states
+MockAggregator._roundId (src/oracle/MockAggregator.sol#13) should be immutable 
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#state-variables-that-could-be-declared-immutable
+INFO:Slither:. analyzed (93 contracts with 96 detectors), 28 result(s) found
