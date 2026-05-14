@@ -1,0 +1,76 @@
+###############################################################################
+# DeFi Super-App AMM Subgraph — subgraph.yaml
+# Network: arbitrum-sepolia
+# Replace every <PLACEHOLDER_*> with the actual deployed contract addresses.
+###############################################################################
+
+specVersion: 1.0.0
+indexerHints:
+  prune: auto
+
+schema:
+  file: ./schema.graphql
+
+dataSources:
+
+  # ---------------------------------------------------------------------------
+  # PairFactory — tracks pair creation; dynamically adds Pair data sources
+  # ---------------------------------------------------------------------------
+  - kind: ethereum
+    name: PairFactory
+    network: arbitrum-sepolia
+    source:
+      address: "<PLACEHOLDER_PAIR_FACTORY_ADDRESS>"
+      abi: PairFactory
+      # Set to the block in which PairFactory was deployed on arbitrum-sepolia.
+      startBlock: <PLACEHOLDER_FACTORY_START_BLOCK>
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Factory
+        - Pair
+      abis:
+        - name: PairFactory
+          file: ./abis/PairFactory.json
+        - name: Pair
+          file: ./abis/Pair.json
+      eventHandlers:
+        - event: PairCreated(indexed address,indexed address,address,uint256,bool)
+          handler: handlePairCreated
+      file: ./src/mapping.ts
+
+# ---------------------------------------------------------------------------
+# Templates — one instance is created per Pair when PairCreated fires
+# ---------------------------------------------------------------------------
+templates:
+  - kind: ethereum
+    name: Pair
+    network: arbitrum-sepolia
+    source:
+      abi: Pair
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Pair
+        - MintEvent
+        - BurnEvent
+        - SwapEvent
+        - SyncEvent
+        - LPPosition
+      abis:
+        - name: Pair
+          file: ./abis/Pair.json
+      eventHandlers:
+        - event: Mint(indexed address,uint256,uint256,uint256,uint256)
+          handler: handleMint
+        - event: Burn(indexed address,uint256,uint256,indexed address,uint256)
+          handler: handleBurn
+        - event: Swap(indexed address,uint256,uint256,uint256,uint256,indexed address)
+          handler: handleSwap
+        - event: Sync(uint112,uint112)
+          handler: handleSync
+      file: ./src/mapping.ts
