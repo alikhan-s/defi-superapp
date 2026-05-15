@@ -1,0 +1,18 @@
+{
+  "chainName": "Arbitrum Sepolia",
+  "chainId": 421614,
+  "tokens": {
+    "weth": "0x0000000000000000000000000000000000000000",
+    "usdc": "0x0000000000000000000000000000000000000000"
+  },
+  "feeds": {
+    "ethUsd": "0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165",
+    "usdcUsd": "0x0153002d20B96532C639313c2d54c3dA09109309",
+    "stalenessSeconds": 3600
+  },
+  "notes": [
+    "tokens.weth and tokens.usdc are placeholders; Deploy.s.sol will revert if they are address(0).",
+    "feeds.ethUsd and feeds.usdcUsd are Chainlink's published Arbitrum Sepolia data feeds.",
+    "stalenessSeconds is 1 hour as required by the deployment spec."
+  ]
+}

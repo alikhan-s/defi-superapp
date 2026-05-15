@@ -21,14 +21,27 @@ src/
 
 <!-- TODO: Add architecture diagram link -->
 
-## Deployed Contracts
+## Deployed Contracts — Arbitrum Sepolia (chain ID `421614`)
 
-| Network  | Contract    | Address |
-|----------|-------------|---------|
-| Mainnet  | —           | —       |
-| Sepolia  | —           | —       |
+Populated by [script/Deploy.s.sol](script/Deploy.s.sol). Explorer base: `https://sepolia.arbiscan.io/address/`.
 
-<!-- TODO: populate after first deployment -->
+| Contract | Address | Explorer |
+| --- | --- | --- |
+| GovernanceToken | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| ChainlinkPriceOracle | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| LPPositionNFT | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| PairFactory | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| SamplePair (WETH/USDC) | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| LendingPool | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| YieldVault (yvUSDC) | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| TreasuryProxy (UUPS) | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| ProtocolTimelock | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| ProtocolGovernor | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+
+See [docs/deployment-runbook.md](docs/deployment-runbook.md) for the end-to-end deployment + verification procedure. Source of truth for the addresses is [deployments/421614.json](deployments/421614.json) after a successful broadcast.
+
+**Subgraph:** TBD — populated in Phase 10.
+**Frontend:** TBD — populated in Phase 11.
 
 ## Run Locally
 
