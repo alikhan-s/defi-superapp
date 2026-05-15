@@ -43,7 +43,7 @@ See [docs/deployment-runbook.md](docs/deployment-runbook.md) for the end-to-end 
 **Subgraph (The Graph — Arbitrum Sepolia):**
 
 - Studio dashboard: `https://thegraph.com/studio/subgraph/defi-superapp/`
-- Query endpoint (Studio): `https://api.studio.thegraph.com/query/<STUDIO_ID>/defi-superapp/v0.0.1`
+- Query endpoint (Studio): `https://api.studio.thegraph.com/query/1753772/defi-superapp/v0.0.1`
 - Source: [subgraph/](subgraph/) — `subgraph.yaml`, `schema.graphql`, mappings under `src/mappings/`
 - Sample queries: [subgraph/queries.md](subgraph/queries.md) (top pools, user swaps, proposal states, at-risk lending positions, full portfolio)
 
@@ -58,8 +58,6 @@ npx graph build
 npx graph auth --studio <DEPLOY_KEY>
 npx graph deploy --studio defi-superapp --version-label v0.0.1
 ```
-
-The `<STUDIO_ID>` placeholder above is filled in by The Graph Studio after the first successful deploy.
 
 **Frontend:** TBD — populated in Phase 11.
 

@@ -12,11 +12,13 @@ export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const links = [
-    { name: 'Dashboard', path: '/' },
+    { name: 'Home', path: '/' },
     { name: 'Swap', path: '/swap' },
-    { name: 'Lend', path: '/lend' },
-    { name: 'Vaults', path: '/vaults' },
+    { name: 'Pool', path: '/pool' },
+    { name: 'Vault', path: '/vault' },
+    { name: 'Lending', path: '/lending' },
     { name: 'Governance', path: '/governance' },
+    { name: 'Portfolio', path: '/portfolio' },
   ];
 
   return (

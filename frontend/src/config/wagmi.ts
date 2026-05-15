@@ -1,15 +1,15 @@
-import { createConfig, http } from 'wagmi';
-import { arbitrumSepolia, localhost } from 'wagmi/chains';
-import { injected, walletConnect } from 'wagmi/connectors';
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
+import { arbitrumSepolia } from 'wagmi/chains';
 
-export const config = createConfig({
-  chains: [arbitrumSepolia, localhost],
-  connectors: [
-    injected(),
-    walletConnect({ projectId: 'YOUR_PROJECT_ID' }),
-  ],
-  transports: {
-    [arbitrumSepolia.id]: http(),
-    [localhost.id]: http(),
-  },
+/**
+ * Single source of truth for the wagmi/RainbowKit config. Arbitrum Sepolia is
+ * the only supported chain — `<NetworkGuard>` forces users onto it. The
+ * WalletConnect project id comes from the environment (see .env.example);
+ * injected wallets (MetaMask, Rabby, …) work even without it.
+ */
+export const config = getDefaultConfig({
+  appName: 'DeFi SuperApp',
+  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'YOUR_WALLETCONNECT_PROJECT_ID',
+  chains: [arbitrumSepolia],
+  ssr: false,
 });

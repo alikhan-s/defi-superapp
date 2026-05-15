@@ -196,7 +196,7 @@ export function Dashboard() {
             <p className="text-gray-400 text-sm leading-relaxed">Instant trades with deep liquidity and minimal slippage via our AMM.</p>
           </Link>
 
-          <Link to="/lend" className="group p-6 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(255,255,255,0.05)]">
+          <Link to="/lending" className="group p-6 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(255,255,255,0.05)]">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 text-green-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
               <Landmark size={28} />
             </div>
@@ -207,7 +207,7 @@ export function Dashboard() {
             <p className="text-gray-400 text-sm leading-relaxed">Supply assets to earn interest, or borrow against your collateral.</p>
           </Link>
 
-          <Link to="/vaults" className="group p-6 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(255,255,255,0.05)]">
+          <Link to="/vault" className="group p-6 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(255,255,255,0.05)]">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 text-yellow-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
               <Vault size={28} />
             </div>

@@ -1,252 +1,233 @@
-import { useState } from 'react';
-import { useAccount, useReadContract, useWriteContract } from 'wagmi';
+import { useState, useMemo } from 'react';
+import { useAccount, useReadContract, useReadContracts } from 'wagmi';
 import { motion } from 'framer-motion';
 import { TrendingUp, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
-import { parseUnits, formatUnits } from 'viem';
+import { parseUnits, formatUnits, erc20Abi as viemErc20Abi } from 'viem';
 
 import { addresses } from '../contracts/addresses';
 import { yieldVaultAbi } from '../contracts/abis/yieldVaultAbi';
-import { erc20Abi } from '../contracts/abis/erc20Abi';
-import { TxButton } from '../components/TxButton';
+import { lendingPoolAbi } from '../contracts/abis/lendingPoolAbi';
+import { TxButton, type TxRequest } from '../components/TxButton';
+
+const VAULT = addresses.YieldVault as `0x${string}`;
+const POOL = addresses.LendingPool as `0x${string}`;
+const BPS_DENOMINATOR = 10_000;
+const WAD = 10n ** 18n;
 
 export function Vaults() {
   const { isConnected, address } = useAccount();
-  const [activeAction, setActiveAction] = useState<'deposit' | 'withdraw'>('deposit');
+  const [action, setAction] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState('');
 
-  // USDC has 6 decimals, but our vault returns 12 decimals for shares (due to offset 6)
-  const USDC_DECIMALS = 6;
-  const SHARE_DECIMALS = 12;
-
-  // Mock underlying asset address since we know it's a USDC vault, but ideally read from vault.asset()
-  const underlyingAsset = "0x0000000000000000000000000000000000000000"; // Mock
-
-  // Read Vault Stats
-  const { data: totalAssets } = useReadContract({
-    address: addresses.YieldVault as `0x${string}`,
-    abi: yieldVaultAbi,
-    functionName: 'totalAssets',
+  // --- Vault state ---------------------------------------------------------
+  const { data: assetAddr } = useReadContract({ address: VAULT, abi: yieldVaultAbi, functionName: 'asset' });
+  const { data: shareDecimals } = useReadContract({ address: VAULT, abi: yieldVaultAbi, functionName: 'decimals' });
+  const { data: totalAssets, refetch: refetchTA } = useReadContract({ address: VAULT, abi: yieldVaultAbi, functionName: 'totalAssets' });
+  const { data: userShares, refetch: refetchShares } = useReadContract({
+    address: VAULT, abi: yieldVaultAbi, functionName: 'balanceOf', args: address ? [address] : undefined, query: { enabled: !!address },
+  });
+  const { data: userAssets, refetch: refetchUA } = useReadContract({
+    address: VAULT, abi: yieldVaultAbi, functionName: 'maxWithdraw', args: address ? [address] : undefined, query: { enabled: !!address },
   });
 
-  // Read User Stats
-  const { data: userShares } = useReadContract({
-    address: addresses.YieldVault as `0x${string}`,
-    abi: yieldVaultAbi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: !!address }
+  // --- Asset metadata + user allowance/balance -----------------------------
+  const { data: assetMeta } = useReadContracts({
+    contracts: assetAddr
+      ? [
+          { address: assetAddr, abi: viemErc20Abi, functionName: 'symbol' },
+          { address: assetAddr, abi: viemErc20Abi, functionName: 'decimals' },
+        ]
+      : [],
+    query: { enabled: !!assetAddr },
+  });
+  const assetSym = (assetMeta?.[0]?.result as string) ?? 'USDC';
+  const assetDec = (assetMeta?.[1]?.result as number) ?? 6;
+
+  const { data: userAssetBal, refetch: refetchBal } = useReadContract({
+    address: assetAddr, abi: viemErc20Abi, functionName: 'balanceOf', args: address ? [address] : undefined, query: { enabled: !!assetAddr && !!address },
+  });
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: assetAddr, abi: viemErc20Abi, functionName: 'allowance', args: address ? [address, VAULT] : undefined, query: { enabled: !!assetAddr && !!address },
   });
 
-  // Convert user shares to underlying assets value
-  const { data: userAssetsValue } = useReadContract({
-    address: addresses.YieldVault as `0x${string}`,
-    abi: yieldVaultAbi,
-    functionName: 'convertToAssets',
-    args: userShares ? [userShares as bigint] : undefined,
-    query: { enabled: !!userShares && (userShares as bigint) > 0n }
+  // --- Interest-rate model inputs (for APY) --------------------------------
+  const { data: rateData } = useReadContracts({
+    contracts: [
+      { address: POOL, abi: lendingPoolAbi, functionName: 'baseRate' },
+      { address: POOL, abi: lendingPoolAbi, functionName: 'slope1' },
+      { address: POOL, abi: lendingPoolAbi, functionName: 'totalDebt' },
+    ],
+  });
+  const { data: poolLiquidity } = useReadContract({
+    address: assetAddr, abi: viemErc20Abi, functionName: 'balanceOf', args: [POOL], query: { enabled: !!assetAddr },
   });
 
-  // Mock allowance read
-  const allowance = 1000000000000000000n; // Assume approved for UI purposes to save complexity
-  const parsedAmount = amount && !isNaN(Number(amount)) ? parseUnits(amount, USDC_DECIMALS) : 0n;
-  const needsApproval = activeAction === 'deposit' && parsedAmount > allowance;
+  // APY derived from the on-chain borrow rate:
+  //   borrowRateBPS = baseRate + utilization * slope1   (utilization in [0,1])
+  //   supplyAPR     = borrowAPR * utilization           (suppliers earn borrower interest)
+  //   APY           = (1 + supplyAPR/365)^365 - 1        (daily compounding)
+  const { apy, borrowApr, utilization } = useMemo(() => {
+    const baseRate = (rateData?.[0]?.result as bigint) ?? 0n;
+    const slope1 = (rateData?.[1]?.result as bigint) ?? 0n;
+    const totalDebt = (rateData?.[2]?.result as bigint) ?? 0n;
+    const available = (poolLiquidity as bigint) ?? 0n;
+    const denom = available + totalDebt;
+    const util = denom > 0n ? Number((totalDebt * WAD) / denom) / 1e18 : 0;
+    const borrowRateBps = Number(baseRate) + util * Number(slope1);
+    const borrowAprFrac = borrowRateBps / BPS_DENOMINATOR;
+    const supplyApr = borrowAprFrac * util;
+    const apyPct = (Math.pow(1 + supplyApr / 365, 365) - 1) * 100;
+    return { apy: apyPct, borrowApr: borrowAprFrac * 100, utilization: util * 100 };
+  }, [rateData, poolLiquidity]);
 
-  const { writeContractAsync } = useWriteContract();
+  // --- Build requests ------------------------------------------------------
+  const parsedAmount = useMemo(() => {
+    try { return amount && Number(amount) > 0 ? parseUnits(amount, assetDec) : 0n; } catch { return 0n; }
+  }, [amount, assetDec]);
 
-  const handleAction = async () => {
-    if (!amount || !address) return;
-    
-    if (needsApproval) {
-      // Mock approval
-      return writeContractAsync({
-        address: underlyingAsset as `0x${string}`,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [addresses.YieldVault as `0x${string}`, parsedAmount],
-      });
-    }
+  const needsApproval = action === 'deposit' && parsedAmount > 0n && (allowance === undefined || (allowance as bigint) < parsedAmount);
 
-    if (activeAction === 'deposit') {
-      return writeContractAsync({
-        address: addresses.YieldVault as `0x${string}`,
-        abi: yieldVaultAbi,
-        functionName: 'deposit',
-        args: [parsedAmount, address],
-      });
-    } else {
-      // For withdraw, user specifies shares or assets. Standard ERC4626 `withdraw` takes assets.
-      return writeContractAsync({
-        address: addresses.YieldVault as `0x${string}`,
-        abi: yieldVaultAbi,
-        functionName: 'withdraw',
-        args: [parsedAmount, address, address],
-      });
-    }
-  };
+  const approveReq: TxRequest | undefined = assetAddr && parsedAmount > 0n
+    ? { address: assetAddr, abi: viemErc20Abi as unknown as TxRequest['abi'], functionName: 'approve', args: [VAULT, parsedAmount] } : undefined;
+  const depositReq: TxRequest | undefined = address && parsedAmount > 0n
+    ? { address: VAULT, abi: yieldVaultAbi as unknown as TxRequest['abi'], functionName: 'deposit', args: [parsedAmount, address] } : undefined;
+  const withdrawReq: TxRequest | undefined = address && parsedAmount > 0n
+    ? { address: VAULT, abi: yieldVaultAbi as unknown as TxRequest['abi'], functionName: 'withdraw', args: [parsedAmount, address, address] } : undefined;
+
+  const refetchAll = () => { refetchTA(); refetchShares(); refetchUA(); refetchBal(); refetchAllowance(); };
+
+  const displayBalance = action === 'deposit'
+    ? (userAssetBal !== undefined ? Number(formatUnits(userAssetBal as bigint, assetDec)) : 0)
+    : (userAssets !== undefined ? Number(formatUnits(userAssets as bigint, assetDec)) : 0);
 
   return (
     <div className="max-w-6xl mx-auto space-y-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold text-white flex items-center gap-3">
-            <TrendingUp className="text-cyan-500 w-10 h-10" />
-            Yield Vaults
-          </h1>
-          <p className="text-gray-400 text-lg">Automated ERC4626 strategies to maximize your passive income.</p>
-        </div>
+      <div className="space-y-2">
+        <h1 className="text-4xl font-bold text-white flex items-center gap-3">
+          <TrendingUp className="text-cyan-500 w-10 h-10" />
+          Yield Vault
+        </h1>
+        <p className="text-gray-400 text-lg">ERC-4626 vault that supplies {assetSym} to the lending market to earn the supply rate.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Vault Info Card */}
         <div className="lg:col-span-8 space-y-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-8 border-cyan-500/20 relative overflow-hidden group"
-          >
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[100px] group-hover:bg-cyan-500/20 transition-colors duration-700 pointer-events-none" />
-            
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-8 border-cyan-500/20 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none" />
+
             <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10 border-b border-white/5 pb-8">
               <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2775CA] to-cyan-500 p-[1px] shadow-lg shadow-cyan-500/20">
-                    <div className="w-full h-full rounded-2xl bg-[#0a0b0f] flex items-center justify-center">
-                      <span className="font-bold text-transparent bg-clip-text bg-gradient-to-br from-[#2775CA] to-cyan-400 text-2xl">U</span>
-                    </div>
-                  </div>
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#13141a] border-2 border-[#0a0b0f] flex items-center justify-center">
-                    <Lock size={12} className="text-cyan-400" />
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2775CA] to-cyan-500 p-[1px] shadow-lg shadow-cyan-500/20">
+                  <div className="w-full h-full rounded-2xl bg-[#0a0b0f] flex items-center justify-center">
+                    <span className="font-bold text-cyan-400 text-2xl">{assetSym[0]}</span>
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold text-white tracking-tight">yvUSDC</h2>
-                  <p className="text-gray-400 text-lg">Stablecoin Yield Strategy</p>
+                  <h2 className="text-3xl font-bold text-white tracking-tight">yv{assetSym}</h2>
+                  <p className="text-gray-400 text-lg">Lending Supply Strategy</p>
                 </div>
               </div>
 
               <div className="text-left sm:text-right p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
                 <p className="text-sm font-semibold text-cyan-400 tracking-wider uppercase mb-1">Estimated APY</p>
                 <div className="text-4xl font-black text-white flex items-baseline gap-1">
-                  8.45<span className="text-2xl text-cyan-500">%</span>
+                  {apy.toFixed(2)}<span className="text-2xl text-cyan-500">%</span>
                 </div>
               </div>
             </div>
 
             <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-6 rounded-3xl bg-black/40 border border-white/5 hover:border-white/10 transition-colors">
+              <div className="p-6 rounded-3xl bg-black/40 border border-white/5">
                 <div className="flex items-center gap-2 mb-2">
                   <Lock size={16} className="text-gray-400" />
                   <p className="text-sm font-medium text-gray-400 uppercase tracking-wider">Total Value Locked</p>
                 </div>
                 <p className="text-3xl font-bold text-white">
-                  ${totalAssets ? Number(formatUnits(totalAssets, USDC_DECIMALS)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'}
+                  {totalAssets ? Number(formatUnits(totalAssets as bigint, assetDec)).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} {assetSym}
                 </p>
               </div>
-
-              <div className="p-6 rounded-3xl bg-black/40 border border-white/5 hover:border-white/10 transition-colors">
+              <div className="p-6 rounded-3xl bg-black/40 border border-white/5">
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 size={16} className="text-gray-400" />
-                  <p className="text-sm font-medium text-gray-400 uppercase tracking-wider">Your Position (USDC)</p>
+                  <p className="text-sm font-medium text-gray-400 uppercase tracking-wider">Your Position</p>
                 </div>
                 <p className="text-3xl font-bold text-white">
-                  ${userAssetsValue ? Number(formatUnits(userAssetsValue as bigint, USDC_DECIMALS)).toFixed(2) : '0.00'}
+                  {userAssets ? Number(formatUnits(userAssets as bigint, assetDec)).toFixed(2) : '0.00'} {assetSym}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  {userShares ? Number(formatUnits(userShares, SHARE_DECIMALS)).toFixed(4) : '0.00'} Shares
+                  {userShares ? Number(formatUnits(userShares as bigint, (shareDecimals as number) ?? 18)).toFixed(4) : '0.00'} shares
                 </p>
+              </div>
+            </div>
+
+            {/* Rate breakdown — shows the APY is grounded in on-chain data */}
+            <div className="relative z-10 mt-4 grid grid-cols-2 gap-4 text-sm">
+              <div className="flex justify-between p-4 rounded-2xl bg-black/40 border border-white/5">
+                <span className="text-gray-400">Borrow APR</span>
+                <span className="text-white font-medium">{borrowApr.toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between p-4 rounded-2xl bg-black/40 border border-white/5">
+                <span className="text-gray-400">Utilization</span>
+                <span className="text-white font-medium">{utilization.toFixed(1)}%</span>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Action Panel */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-4"
-        >
+        {/* Action panel */}
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-4">
           <div className="glass-card p-4">
             <div className="flex p-1.5 gap-1.5 mb-6 bg-black/40 rounded-2xl">
-              <button
-                onClick={() => setActiveAction('deposit')}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  activeAction === 'deposit' 
-                    ? 'bg-white text-black shadow-md' 
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                Deposit
-              </button>
-              <button
-                onClick={() => setActiveAction('withdraw')}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  activeAction === 'withdraw' 
-                    ? 'bg-white text-black shadow-md' 
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                Withdraw
-              </button>
+              {(['deposit', 'withdraw'] as const).map((a) => (
+                <button
+                  key={a}
+                  onClick={() => { setAction(a); setAmount(''); }}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold capitalize transition-all ${
+                    action === a ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {a}
+                </button>
+              ))}
             </div>
 
-            <div className="p-4 rounded-2xl bg-black/40 border border-white/5 focus-within:border-cyan-500/50 transition-colors mb-6 group">
-              <div className="flex justify-between mb-3">
-                <span className="text-sm font-medium text-gray-400">Amount</span>
-                <span className="text-sm font-medium text-gray-400">
-                  Balance: {activeAction === 'withdraw' && userAssetsValue ? Number(formatUnits(userAssetsValue as bigint, USDC_DECIMALS)).toFixed(2) : '0.00'}
+            <div className="p-4 rounded-2xl bg-black/40 border border-white/5 focus-within:border-cyan-500/50 transition-colors mb-6">
+              <div className="flex justify-between mb-3 text-sm text-gray-400">
+                <span>Amount</span>
+                <span>
+                  Balance: {displayBalance.toFixed(2)}
+                  {displayBalance > 0 && (
+                    <button onClick={() => setAmount(String(displayBalance))} className="ml-2 text-cyan-400 hover:text-cyan-300 font-semibold">MAX</button>
+                  )}
                 </span>
               </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-transparent text-4xl text-white font-bold focus:outline-none placeholder:text-gray-700"
-                />
-                <button className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-bold hover:bg-cyan-500/20 transition-colors">
-                  MAX
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Exchange Rate</span>
-                <span className="text-white font-medium">1 Share = 1.05 USDC</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Network Fee</span>
-                <span className="text-white font-medium">~$0.45</span>
-              </div>
+              <input
+                type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)}
+                className="w-full bg-transparent text-4xl text-white font-bold focus:outline-none placeholder:text-gray-700"
+              />
             </div>
 
             {!isConnected ? (
-              <button disabled className="w-full py-4 rounded-2xl bg-white/5 text-gray-500 font-bold text-lg cursor-not-allowed">
-                Connect Wallet
-              </button>
+              <button disabled className="w-full py-4 rounded-2xl bg-white/5 text-gray-500 font-bold cursor-not-allowed">Connect wallet</button>
+            ) : parsedAmount === 0n ? (
+              <button disabled className="w-full py-4 rounded-2xl bg-white/5 text-gray-500 font-bold cursor-not-allowed">Enter an amount</button>
             ) : needsApproval ? (
-              <TxButton
-                onClick={handleAction}
-                text="Approve USDC"
-                loadingText="Approving..."
-                className="w-full h-14 text-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-none hover:bg-cyan-500/30"
-              />
+              <TxButton request={approveReq} enabled={!!approveReq} text={`Approve ${assetSym}`} confirmingText="Approving…"
+                className="!bg-cyan-500/20 !text-cyan-400 !shadow-none" onSuccess={() => { refetchAllowance(); }} />
+            ) : action === 'deposit' ? (
+              <TxButton request={depositReq} enabled={!!depositReq} text={`Deposit ${assetSym}`} confirmingText="Depositing…"
+                className="!bg-gradient-to-r !from-cyan-500 !to-blue-500 !shadow-cyan-500/25"
+                onSuccess={() => { setAmount(''); refetchAll(); }} />
             ) : (
-              <TxButton
-                onClick={handleAction}
-                text={activeAction === 'deposit' ? 'Deposit USDC' : 'Withdraw USDC'}
-                loadingText="Processing..."
-                variant="primary"
-                className="w-full h-14 text-lg !bg-gradient-to-r !from-cyan-500 !to-blue-500 !shadow-cyan-500/25"
-              />
+              <TxButton request={withdrawReq} enabled={!!withdrawReq} text={`Withdraw ${assetSym}`} confirmingText="Withdrawing…"
+                className="!bg-gradient-to-r !from-cyan-500 !to-blue-500 !shadow-cyan-500/25"
+                onSuccess={() => { setAmount(''); refetchAll(); }} />
             )}
-            
-            {activeAction === 'deposit' && (
+
+            {action === 'deposit' && (
               <div className="mt-4 flex items-start gap-2 text-xs text-gray-500">
                 <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                <p>Depositing into this vault involves smart contract risk. Your funds will be utilized in various yield-generating strategies.</p>
+                <p>Deposits are supplied to the lending pool. Yield accrues as borrowers pay interest; APY varies with utilization.</p>
               </div>
             )}
           </div>

@@ -21,7 +21,7 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.15.1",
     "viem": "^2.50.4",
-    "wagmi": "^3.6.15"
+    "wagmi": "^2.16.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
