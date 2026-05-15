@@ -1,0 +1,15 @@
+{
+  "name": "defi-superapp-amm-subgraph",
+  "version": "1.0.0",
+  "description": "The Graph subgraph for DeFi Super-App AMM (PairFactory + Pair) on Arbitrum Sepolia",
+  "license": "MIT",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build":   "graph build",
+    "deploy":  "graph deploy --studio defi-superapp-amm"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli":  "0.79.2",
+    "@graphprotocol/graph-ts":   "0.35.1"
+  }
+}
