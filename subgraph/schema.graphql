@@ -1,178 +1,60 @@
 ###############################################################################
-# DeFi Super-App AMM Subgraph — schema.graphql
-# Covers: PairCreated, Mint, Burn, Swap (+ Sync for reserve tracking)
+# DeFi Super-App Subgraph — schema.graphql
+# Five core entities covering AMM pools, swaps, lending, governance, and
+# liquidations on Arbitrum Sepolia.
 ###############################################################################
 
-# ---------------------------------------------------------------------------
-# Factory-level aggregates
-# ---------------------------------------------------------------------------
+type Pool @entity {
+  id: ID!                          # Pair contract address (lowercased)
+  token0: Bytes!
+  token1: Bytes!
+  reserve0: BigInt!
+  reserve1: BigInt!
+  totalSupply: BigInt!
+  swapsCount: BigInt!
+  createdAtBlock: BigInt!
 
-"""
-Global statistics for the PairFactory.
-There is always exactly one record with id = "factory".
-"""
-type Factory @entity {
-  id: ID!                         # Always "factory"
-  pairCount: Int!                  # Total number of pairs ever created
-  totalVolumeUSD: BigDecimal!      # Cumulative swap volume (both tokens, no price data = 0 if no oracle)
-  txCount: BigInt!                 # Total transaction count touching the factory
+  swaps: [Swap!]! @derivedFrom(field: "pool")
 }
 
-# ---------------------------------------------------------------------------
-# Pair
-# ---------------------------------------------------------------------------
-
-"""
-A single AMM trading pair deployed by PairFactory.
-"""
-type Pair @entity {
-  id: ID!                         # Pair contract address (lowercased)
-  token0: Bytes!                   # Sorted lower-address token
-  token1: Bytes!                   # Sorted higher-address token
-  pairIndex: BigInt!               # allPairs index (count at creation time)
-  deterministic: Boolean!          # Was this pair deployed via CREATE2?
-  createdAtTimestamp: BigInt!
-  createdAtBlockNumber: BigInt!
-
-  # Reserve snapshot (updated on every Sync / Mint / Burn / Swap)
-  reserve0: BigDecimal!
-  reserve1: BigDecimal!
-  reserveLastUpdatedAt: BigInt!
-
-  # LP accounting
-  totalLPSupply: BigDecimal!
-
-  # Aggregates
-  txCount: BigInt!
-  volumeToken0: BigDecimal!
-  volumeToken1: BigDecimal!
-
-  # Reverse lookups
-  mints: [MintEvent!]! @derivedFrom(field: "pair")
-  burns: [BurnEvent!]! @derivedFrom(field: "pair")
-  swaps: [SwapEvent!]! @derivedFrom(field: "pair")
-  syncs: [SyncEvent!]! @derivedFrom(field: "pair")
-}
-
-# ---------------------------------------------------------------------------
-# Mint
-# ---------------------------------------------------------------------------
-
-"""
-Emitted when liquidity is added to a Pair and an LP NFT is minted.
-Event signature:
-  Mint(address indexed sender, uint256 amount0, uint256 amount1,
-       uint256 liquidity, uint256 tokenId)
-"""
-type MintEvent @entity(immutable: true) {
-  id: ID!                         # tx.hash + "-" + logIndex
-
-  pair: Pair!
-  sender: Bytes!                   # msg.sender (indexed)
-  amount0: BigDecimal!             # token0 deposited
-  amount1: BigDecimal!             # token1 deposited
-  liquidity: BigDecimal!           # LP units minted
-  tokenId: BigInt!                 # ERC-721 LP NFT token ID
-
-  transaction: Bytes!              # tx hash
-  logIndex: BigInt!
+type Swap @entity(immutable: true) {
+  id: ID!                          # tx.hash + "-" + logIndex
+  pool: Pool!
+  sender: Bytes!
+  amount0In: BigInt!
+  amount1In: BigInt!
+  amount0Out: BigInt!
+  amount1Out: BigInt!
   timestamp: BigInt!
   blockNumber: BigInt!
 }
 
-# ---------------------------------------------------------------------------
-# Burn
-# ---------------------------------------------------------------------------
-
-"""
-Emitted when an LP NFT is burned and underlying tokens are returned.
-Event signature:
-  Burn(address indexed sender, uint256 amount0, uint256 amount1,
-       address indexed to, uint256 tokenId)
-"""
-type BurnEvent @entity(immutable: true) {
-  id: ID!                         # tx.hash + "-" + logIndex
-
-  pair: Pair!
-  sender: Bytes!                   # msg.sender (indexed)
-  amount0: BigDecimal!             # token0 returned
-  amount1: BigDecimal!             # token1 returned
-  to: Bytes!                       # recipient (indexed)
-  tokenId: BigInt!                 # LP NFT burned
-
-  transaction: Bytes!
-  logIndex: BigInt!
-  timestamp: BigInt!
-  blockNumber: BigInt!
+type LendingPosition @entity {
+  id: ID!                          # user address (lowercased)
+  collateral: BigInt!
+  debt: BigInt!
+  healthFactor: BigInt!            # 1e18-scaled; type(uint256).max when debt == 0
+  lastUpdated: BigInt!
 }
 
-# ---------------------------------------------------------------------------
-# Swap
-# ---------------------------------------------------------------------------
-
-"""
-Emitted on every token swap (including flash swaps).
-Event signature:
-  Swap(address indexed sender,
-       uint256 amount0In, uint256 amount1In,
-       uint256 amount0Out, uint256 amount1Out,
-       address indexed to)
-"""
-type SwapEvent @entity(immutable: true) {
-  id: ID!                         # tx.hash + "-" + logIndex
-
-  pair: Pair!
-  sender: Bytes!                   # initiator (indexed)
-  to: Bytes!                       # output recipient (indexed)
-  amount0In: BigDecimal!
-  amount1In: BigDecimal!
-  amount0Out: BigDecimal!
-  amount1Out: BigDecimal!
-
-  transaction: Bytes!
-  logIndex: BigInt!
-  timestamp: BigInt!
-  blockNumber: BigInt!
+type Proposal @entity {
+  id: ID!                          # proposalId as decimal string
+  proposalId: BigInt!
+  proposer: Bytes!
+  description: String!
+  state: String!                   # Pending / Active / Succeeded / Defeated / Queued / Executed / Canceled
+  forVotes: BigInt!
+  againstVotes: BigInt!
+  abstainVotes: BigInt!
+  createdAt: BigInt!
+  executedAt: BigInt
 }
 
-# ---------------------------------------------------------------------------
-# Sync  (emitted after every state-changing operation)
-# ---------------------------------------------------------------------------
-
-"""
-Emitted whenever the packed reserves are updated.
-Event signature:
-  Sync(uint112 reserve0, uint112 reserve1)
-"""
-type SyncEvent @entity(immutable: true) {
-  id: ID!                         # tx.hash + "-" + logIndex
-
-  pair: Pair!
-  reserve0: BigDecimal!
-  reserve1: BigDecimal!
-
-  transaction: Bytes!
-  logIndex: BigInt!
+type LiquidationEvent @entity(immutable: true) {
+  id: ID!                          # tx.hash + "-" + logIndex
+  user: Bytes!
+  liquidator: Bytes!
+  debtCovered: BigInt!
+  collateralSeized: BigInt!
   timestamp: BigInt!
-  blockNumber: BigInt!
-}
-
-# ---------------------------------------------------------------------------
-# LP Position NFT
-# ---------------------------------------------------------------------------
-
-"""
-Tracks individual LP positions represented by ERC-721 token IDs.
-Created on Mint, removed on Burn.
-"""
-type LPPosition @entity {
-  id: ID!                         # tokenId as string
-
-  pair: Pair!
-  owner: Bytes!                    # current NFT holder (set at mint; not tracked on transfer)
-  liquidity: BigDecimal!           # LP units; set to 0 on burn
-  active: Boolean!                 # false after burn
-
-  mintedAt: BigInt!
-  burnedAt: BigInt                 # null until burned
 }
