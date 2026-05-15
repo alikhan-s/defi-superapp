@@ -11,18 +11,10 @@ import { TxButton, type TxRequest } from '../components/TxButton';
 
 const PAIR = addresses.SamplePair as `0x${string}`;
 const LP_NFT = addresses.LPPositionNFT as `0x${string}`;
-// Lower bound for log scans — protocol was deployed around this block (see subgraph.yaml).
-const FROM_BLOCK = 269_960_000n;
-
-const TRANSFER_EVENT = {
-  type: 'event',
-  name: 'Transfer',
-  inputs: [
-    { indexed: true, name: 'from', type: 'address' },
-    { indexed: true, name: 'to', type: 'address' },
-    { indexed: true, name: 'tokenId', type: 'uint256' },
-  ],
-} as const;
+// The LP NFT is not Enumerable and free-tier RPCs cap eth_getLogs at a tiny
+// block range, so we can't scan Transfer logs. Instead we enumerate token ids
+// (they auto-increment from 1) up to this cap in a single batched multicall.
+const MAX_TOKEN_ID = 250;
 
 interface LpPosition {
   tokenId: bigint;
@@ -45,27 +37,19 @@ function useLpPositions(address?: `0x${string}`) {
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    if (!publicClient || !address) {
-      setPositions([]);
-      return;
-    }
+    // No synchronous setState here — the page renders a connect prompt when
+    // there's no address, so stale positions are never shown; an account
+    // switch re-runs this effect and replaces them via the async fetch below.
+    if (!publicClient || !address) return;
     let cancelled = false;
-    setLoading(true);
     (async () => {
+      // setState lives inside the async callback (not the synchronous effect
+      // body) — the accepted data-fetching pattern for this lint rule.
+      setLoading(true);
       try {
-        const logs = await publicClient.getLogs({
-          address: LP_NFT,
-          event: TRANSFER_EVENT,
-          args: { to: address },
-          fromBlock: FROM_BLOCK,
-          toBlock: 'latest',
-        });
-        const ids = [...new Set(logs.map((l) => (l.args as { tokenId: bigint }).tokenId))];
-        if (ids.length === 0) {
-          if (!cancelled) setPositions([]);
-          return;
-        }
-        // Keep only tokens the user still owns.
+        // Enumerate candidate token ids 1..MAX via one batched multicall;
+        // ownerOf reverts for non-existent/burned ids (allowFailure → skipped).
+        const ids = Array.from({ length: MAX_TOKEN_ID }, (_, i) => BigInt(i + 1));
         const owners = await publicClient.multicall({
           contracts: ids.map((id) => ({ address: LP_NFT, abi: lpPositionNftAbi, functionName: 'ownerOf', args: [id] })),
           allowFailure: true,
@@ -167,7 +151,6 @@ export function Pool() {
   const excess0 = pairBal0 !== undefined ? (pairBal0 as bigint) - reserve0 : 0n;
   const excess1 = pairBal1 !== undefined ? (pairBal1 as bigint) - reserve1 : 0n;
   const funded0 = amt0Wei > 0n && excess0 >= amt0Wei;
-  const funded1 = amt1Wei > 0n && excess1 >= amt1Wei;
 
   const refetchAll = () => {
     refetchReserves(); refetchSupply(); refetchUB0(); refetchUB1(); refetchPB0(); refetchPB1();
@@ -180,7 +163,11 @@ export function Pool() {
   const mintReq: TxRequest | undefined = address
     ? { address: PAIR, abi: pairAbi as unknown as TxRequest['abi'], functionName: 'mint', args: [address] } : undefined;
 
-  const bothFunded = funded0 && funded1;
+  // `mint()` consumes whatever is sitting in the pair above its reserves, so
+  // minting is possible the moment the pair holds BOTH tokens — independent of
+  // the exact amounts typed in the inputs. (Gating on `excess >= typedAmount`
+  // would strand users who transferred a slightly different amount.)
+  const canMint = excess0 > 0n && excess1 > 0n;
 
   return (
     <div className="max-w-6xl mx-auto space-y-10">
@@ -233,18 +220,24 @@ export function Pool() {
 
             {!isConnected ? (
               <button disabled className="w-full py-4 rounded-2xl bg-white/5 text-gray-500 font-bold cursor-not-allowed">Connect wallet</button>
+            ) : canMint ? (
+              <>
+                <TxButton
+                  request={mintReq} enabled={!!mintReq} text="Mint LP Position" confirmingText="Minting…"
+                  className="font-bold"
+                  onSuccess={() => { setAmount0(''); setAmount1(''); refetchAll(); refreshPositions(); }}
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  Pool holds {Number(formatUnits(excess0, dec0)).toFixed(4)} {sym0} +{' '}
+                  {Number(formatUnits(excess1, dec1)).toFixed(4)} {sym1} ready to mint.
+                </p>
+              </>
             ) : amt0Wei === 0n || amt1Wei === 0n ? (
               <button disabled className="w-full py-4 rounded-2xl bg-white/5 text-gray-500 font-bold cursor-not-allowed">Enter amounts</button>
             ) : !funded0 ? (
-              <TxButton request={transfer0Req} enabled={!!transfer0Req} text={`1. Transfer ${sym0}`} onSuccess={refetchAll} className="font-bold" />
-            ) : !funded1 ? (
-              <TxButton request={transfer1Req} enabled={!!transfer1Req} text={`2. Transfer ${sym1}`} onSuccess={refetchAll} className="font-bold" />
+              <TxButton request={transfer0Req} enabled={!!transfer0Req} text={`Transfer ${sym0}`} onSuccess={refetchAll} className="font-bold" />
             ) : (
-              <TxButton
-                request={mintReq} enabled={!!mintReq && bothFunded} text="3. Mint LP Position" confirmingText="Minting…"
-                className="font-bold"
-                onSuccess={() => { setAmount0(''); setAmount1(''); refetchAll(); refreshPositions(); }}
-              />
+              <TxButton request={transfer1Req} enabled={!!transfer1Req} text={`Transfer ${sym1}`} onSuccess={refetchAll} className="font-bold" />
             )}
           </div>
         </motion.div>
@@ -290,7 +283,7 @@ export function Pool() {
                       <div className="grid grid-cols-3 gap-3 mb-4 text-sm">
                         <div>
                           <p className="text-gray-500">Liquidity</p>
-                          <p className="text-white font-medium">{Number(formatUnits(p.liquidity, 18)).toFixed(4)}</p>
+                          <p className="text-white font-medium">{p.liquidity.toLocaleString()}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">{sym0}</p>

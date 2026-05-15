@@ -35,10 +35,6 @@ contract PostDeployCheck is Script {
 
         address governor = json.readAddress(".Governor");
         address timelock = json.readAddress(".Timelock");
-        address treasuryProxy = json.readAddress(".TreasuryProxy");
-        address lendingPool = json.readAddress(".LendingPool");
-        address pairFactory = json.readAddress(".PairFactory");
-        address yieldVault = json.readAddress(".YieldVault");
         address govToken = json.readAddress(".GovernanceToken");
         address oracle = json.readAddress(".Oracle");
 
@@ -47,19 +43,9 @@ contract PostDeployCheck is Script {
         _line(string.concat("Block:    ", vm.toString(block.number)));
         _line("");
 
-        // --- ownership ---
-        _check("Treasury admin == Timelock", _hasAdmin(treasuryProxy, timelock));
-        _check("LendingPool admin == Timelock", _hasAdmin(lendingPool, timelock));
-        _check("PairFactory admin == Timelock", _hasAdmin(pairFactory, timelock));
-        _check("YieldVault admin == Timelock", _hasAdmin(yieldVault, timelock));
-
-        if (deployer != address(0)) {
-            _check("Deployer renounced Treasury admin", !_hasAdmin(treasuryProxy, deployer));
-            _check("Deployer renounced LendingPool admin", !_hasAdmin(lendingPool, deployer));
-            _check("Deployer renounced PairFactory admin", !_hasAdmin(pairFactory, deployer));
-            _check("Deployer renounced YieldVault admin", !_hasAdmin(yieldVault, deployer));
-            _check("Deployer renounced Timelock admin", !_hasAdmin(timelock, deployer));
-        }
+        // --- ownership: every privileged contract's DEFAULT_ADMIN_ROLE -> Timelock ---
+        // Extracted to its own frame to keep run()'s local count under the stack limit.
+        _assertOwnership(json, timelock, deployer);
 
         // --- timelock parameters ---
         uint256 minDelay = ProtocolTimelock(payable(timelock)).getMinDelay();
@@ -106,6 +92,35 @@ contract PostDeployCheck is Script {
         string memory outPath = string.concat(vm.projectRoot(), "/docs/post-deployment-report.md");
         vm.writeFile(outPath, _report);
         console.log("Wrote", outPath);
+    }
+
+    function _assertOwnership(string memory json, address timelock, address deployer) internal {
+        address treasuryProxy = json.readAddress(".TreasuryProxy");
+        address lendingPool = json.readAddress(".LendingPool");
+        address pairFactory = json.readAddress(".PairFactory");
+        address yieldVault = json.readAddress(".YieldVault");
+        address oracle = json.readAddress(".Oracle");
+        address lpNFT = json.readAddress(".LPPositionNFT");
+        address samplePair = json.readAddress(".SamplePair");
+
+        _check("Treasury admin == Timelock", _hasAdmin(treasuryProxy, timelock));
+        _check("LendingPool admin == Timelock", _hasAdmin(lendingPool, timelock));
+        _check("PairFactory admin == Timelock", _hasAdmin(pairFactory, timelock));
+        _check("YieldVault admin == Timelock", _hasAdmin(yieldVault, timelock));
+        _check("Oracle admin == Timelock", _hasAdmin(oracle, timelock));
+        _check("LPPositionNFT admin == Timelock", _hasAdmin(lpNFT, timelock));
+        _check("SamplePair admin == Timelock", _hasAdmin(samplePair, timelock));
+
+        if (deployer != address(0)) {
+            _check("Deployer renounced Treasury admin", !_hasAdmin(treasuryProxy, deployer));
+            _check("Deployer renounced LendingPool admin", !_hasAdmin(lendingPool, deployer));
+            _check("Deployer renounced PairFactory admin", !_hasAdmin(pairFactory, deployer));
+            _check("Deployer renounced YieldVault admin", !_hasAdmin(yieldVault, deployer));
+            _check("Deployer renounced Oracle admin", !_hasAdmin(oracle, deployer));
+            _check("Deployer renounced LPPositionNFT admin", !_hasAdmin(lpNFT, deployer));
+            _check("Deployer renounced SamplePair admin", !_hasAdmin(samplePair, deployer));
+            _check("Deployer renounced Timelock admin", !_hasAdmin(timelock, deployer));
+        }
     }
 
     function _hasAdmin(address target, address account) internal view returns (bool) {

@@ -131,22 +131,25 @@ contract GovernanceTokenTest is Test {
     }
 
     function test_getPastVotes_afterRoll() public {
+        // Use ABSOLUTE block numbers for both roll targets and queried
+        // timepoints so the test never reads `block.number` mid-flight. This
+        // keeps it deterministic under both `forge test` and `forge coverage`
+        // (whose instrumentation otherwise perturbs relative block math) and
+        // guarantees every queried timepoint is strictly in the past.
+        vm.roll(1000);
         vm.prank(admin);
-        token.delegate(admin);
+        token.delegate(admin); // delegation checkpoint @ block 1000
 
-        uint256 snapshot = block.number;
-        vm.roll(block.number + 1);
+        vm.roll(1005);
+        // Block 1000 is now strictly in the past → full supply delegated.
+        assertEq(token.getPastVotes(admin, 1000), INITIAL_SUPPLY);
 
-        // transfer happens at block snapshot+1
         vm.prank(admin);
-        token.transfer(alice, 1000e18);
+        token.transfer(alice, 1000e18); // balance/vote checkpoint @ block 1005
 
-        // votes at snapshot should still be full supply
-        assertEq(token.getPastVotes(admin, snapshot), INITIAL_SUPPLY);
-
-        // advance one more block so the new checkpoint is finalised
-        vm.roll(block.number + 1);
-        assertEq(token.getPastVotes(admin, block.number - 1), INITIAL_SUPPLY - 1000e18);
+        vm.roll(1010);
+        // Block 1005 is now strictly in the past → reduced by the transfer.
+        assertEq(token.getPastVotes(admin, 1005), INITIAL_SUPPLY - 1000e18);
     }
 
     // -------------------------------------------------------------------------

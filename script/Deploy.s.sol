@@ -54,6 +54,12 @@ contract Deploy is Script {
     bytes32 internal constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
     bytes32 internal constant CANCELLER_ROLE = keccak256("CANCELLER_ROLE");
 
+    // Operational (non-admin) roles minted to the deployer at construction that
+    // must also be migrated to the Timelock so the deployer retains no control.
+    bytes32 internal constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+    bytes32 internal constant FEED_MANAGER_ROLE = keccak256("FEED_MANAGER_ROLE");
+    bytes32 internal constant STRATEGY_MANAGER_ROLE = keccak256("STRATEGY_MANAGER_ROLE");
+
     uint256 internal constant INITIAL_SUPPLY = 10_000_000 ether;
     uint256 internal constant TIMELOCK_DELAY = 2 days;
 
@@ -129,10 +135,24 @@ contract Deploy is Script {
         if (!timelock.hasRole(EXECUTOR_ROLE, address(0))) timelock.grantRole(EXECUTOR_ROLE, address(0));
         if (!timelock.hasRole(CANCELLER_ROLE, d.governor)) timelock.grantRole(CANCELLER_ROLE, d.governor);
 
+        // Operational roles first — grantRole requires the deployer to still
+        // hold DEFAULT_ADMIN, so these must precede the admin handoffs below.
+        _moveRole(d.lendingPool, PAUSER_ROLE, deployer, d.timelock);
+        _moveRole(d.yieldVault, PAUSER_ROLE, deployer, d.timelock);
+        _moveRole(d.yieldVault, STRATEGY_MANAGER_ROLE, deployer, d.timelock);
+        _moveRole(d.samplePair, PAUSER_ROLE, deployer, d.timelock);
+        _moveRole(d.oracle, FEED_MANAGER_ROLE, deployer, d.timelock);
+
+        // DEFAULT_ADMIN_ROLE handoff for every privileged contract. The lpNFT
+        // factory keeps its own admin (needed to grant MINTER_ROLE to future
+        // pairs); only the deployer's admin is renounced.
         _handoff(d.treasuryProxy, deployer, d.timelock);
         _handoff(d.lendingPool, deployer, d.timelock);
         _handoff(d.pairFactory, deployer, d.timelock);
         _handoff(d.yieldVault, deployer, d.timelock);
+        _handoff(d.oracle, deployer, d.timelock);
+        _handoff(d.lpNFT, deployer, d.timelock);
+        _handoff(d.samplePair, deployer, d.timelock);
 
         if (timelock.hasRole(DEFAULT_ADMIN_ROLE, deployer)) {
             timelock.renounceRole(DEFAULT_ADMIN_ROLE, deployer);
@@ -159,6 +179,14 @@ contract Deploy is Script {
         IAccessControl ac = IAccessControl(target);
         if (!ac.hasRole(DEFAULT_ADMIN_ROLE, timelock)) ac.grantRole(DEFAULT_ADMIN_ROLE, timelock);
         if (ac.hasRole(DEFAULT_ADMIN_ROLE, deployer)) ac.renounceRole(DEFAULT_ADMIN_ROLE, deployer);
+    }
+
+    /// @dev Grant `role` on `target` to `to` (if missing) and renounce it from
+    ///      `from` (if held). Idempotent; caller must currently admin `role`.
+    function _moveRole(address target, bytes32 role, address from, address to) internal {
+        IAccessControl ac = IAccessControl(target);
+        if (!ac.hasRole(role, to)) ac.grantRole(role, to);
+        if (ac.hasRole(role, from)) ac.renounceRole(role, from);
     }
 
     function _isContract(address a) internal view returns (bool) {

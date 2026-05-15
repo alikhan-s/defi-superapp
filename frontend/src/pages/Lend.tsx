@@ -235,7 +235,20 @@ export function Lend() {
             ) : parsedAmount === 0n ? (
               <button disabled className="w-full py-4 rounded-2xl bg-white/5 text-gray-500 font-bold cursor-not-allowed border border-white/5">Enter an amount</button>
             ) : (
-              <TxButton request={request} enabled={!!request} text={buttonText} confirmingText="Processing…" onSuccess={() => { setAmount(''); refetchAll(); }} className="text-lg" />
+              <TxButton
+                request={request}
+                enabled={!!request}
+                text={buttonText}
+                confirmingText="Processing…"
+                onSuccess={() => {
+                  // After an approval, keep the amount so the action button
+                  // (Deposit/Repay) appears immediately; only clear it once the
+                  // actual collateral/debt action has gone through.
+                  if (!needsCollApproval && !needsDebtApproval) setAmount('');
+                  refetchAll();
+                }}
+                className="text-lg"
+              />
             )}
           </div>
         </motion.div>

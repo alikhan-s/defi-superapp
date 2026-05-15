@@ -100,6 +100,9 @@ export function Swap() {
     };
   }, [reserves, amountInWei, isReversed, slippage]);
 
+  // A swap is only possible against a pool that actually holds both reserves.
+  const hasLiquidity = reserves ? (reserves[0] as bigint) > 0n && (reserves[1] as bigint) > 0n : false;
+
   // --- Funding detection: pair balance must exceed its reserve by amountIn --
   const reserveInRaw = reserves ? ((isReversed ? reserves[1] : reserves[0]) as bigint) : 0n;
   const pairExcess = pairBalIn !== undefined && reserveInRaw !== undefined ? (pairBalIn as bigint) - reserveInRaw : 0n;
@@ -314,6 +317,16 @@ export function Swap() {
               <button disabled className="w-full py-4 rounded-2xl bg-white/5 text-gray-500 font-bold text-lg cursor-not-allowed">
                 Insufficient {inSym} balance
               </button>
+            ) : !hasLiquidity ? (
+              <>
+                <button disabled className="w-full py-4 rounded-2xl bg-white/5 text-gray-500 font-bold text-lg cursor-not-allowed">
+                  No liquidity in this pool
+                </button>
+                <div className="flex items-start gap-2 px-2 text-xs text-gray-500">
+                  <Info size={14} className="shrink-0 mt-0.5" />
+                  <span>This pool has no reserves yet. Add liquidity on the Pool page before swapping.</span>
+                </div>
+              </>
             ) : !isFunded ? (
               <>
                 <div className="flex items-start gap-2 px-2 text-xs text-gray-500">

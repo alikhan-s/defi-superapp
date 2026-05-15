@@ -162,6 +162,30 @@ function lookup(name: string | undefined): { title: string; message: string } | 
   return name ? ERROR_MESSAGES[name] : undefined;
 }
 
+/**
+ * Many tokens (e.g. the canonical Arbitrum Sepolia WETH) revert with classic
+ * `Error(string)` messages rather than 4-byte custom errors. Map the common
+ * ones to friendly copy by substring — we only ever return our OWN text, never
+ * the raw revert string, so nothing unsafe leaks through.
+ */
+const STRING_PATTERNS: { match: string; title: string; message: string }[] = [
+  { match: 'exceeds allowance', title: 'Approval required', message: 'Token allowance is too low. Approve the token for this amount, then try again.' },
+  { match: 'insufficient allowance', title: 'Approval required', message: 'Token allowance is too low. Approve the token first.' },
+  { match: 'exceeds balance', title: 'Insufficient balance', message: 'You do not have enough tokens for this action.' },
+  { match: 'insufficient balance', title: 'Insufficient balance', message: 'You do not have enough tokens for this action.' },
+  { match: 'transfer amount exceeds', title: 'Transfer failed', message: 'Token transfer failed — check your balance and allowance.' },
+  { match: 'enforcedpause', title: 'Paused', message: 'This contract is currently paused. Try again later.' },
+  { match: 'pausable: paused', title: 'Paused', message: 'This contract is currently paused. Try again later.' },
+];
+
+function matchStringRevert(error: unknown): { title: string; message: string } | undefined {
+  const text = stringifyError(error).toLowerCase();
+  for (const p of STRING_PATTERNS) {
+    if (text.includes(p.match)) return { title: p.title, message: p.message };
+  }
+  return undefined;
+}
+
 /** Detect a wallet-side rejection across the common error shapes. */
 function detectUserRejection(error: unknown): boolean {
   const code = (error as { code?: number; cause?: { code?: number } })?.code;
@@ -218,9 +242,13 @@ export function parseTxError(error: unknown): ParsedTxError {
     }
   }
 
-  // Fallback: decode a raw selector we precomputed.
+  // Fallback 1: decode a raw selector we precomputed.
   const byName = lookup(matchRawSelector(error));
   if (byName) return { ...byName, isUserRejection: false };
+
+  // Fallback 2: classic Error(string) reverts (e.g. WETH "exceeds allowance").
+  const byString = matchStringRevert(error);
+  if (byString) return { ...byString, isUserRejection: false };
 
   // Nothing recognised — never leak the raw payload.
   return { title: 'Transaction failed', message: GENERIC_FALLBACK, isUserRejection: false };
