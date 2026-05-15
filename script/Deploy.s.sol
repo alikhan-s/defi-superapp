@@ -186,32 +186,18 @@ contract Deploy is Script {
 
     function _loadExisting() internal view returns (Deployed memory d) {
         string memory path = string.concat(vm.projectRoot(), "/deployments/", vm.toString(block.chainid), ".json");
-        try vm.readFile(path) returns (string memory json) {
-            d.governanceToken = _readOr(json, ".GovernanceToken");
-            d.oracle = _readOr(json, ".Oracle");
-            d.lpNFT = _readOr(json, ".LPPositionNFT");
-            d.pairFactory = _readOr(json, ".PairFactory");
-            d.samplePair = _readOr(json, ".SamplePair");
-            d.lendingPool = _readOr(json, ".LendingPool");
-            d.yieldVault = _readOr(json, ".YieldVault");
-            d.treasuryProxy = _readOr(json, ".TreasuryProxy");
-            d.timelock = _readOr(json, ".Timelock");
-            d.governor = _readOr(json, ".Governor");
-        } catch {
-            // no prior deployment
-        }
-    }
-
-    function _readOr(string memory json, string memory key) internal view returns (address) {
-        try this.readAddrExternal(json, key) returns (address a) {
-            return a;
-        } catch {
-            return address(0);
-        }
-    }
-
-    function readAddrExternal(string memory json, string memory key) external pure returns (address) {
-        return json.readAddress(key);
+        if (!vm.exists(path)) return d;
+        string memory json = vm.readFile(path);
+        d.governanceToken = json.readAddressOr(".GovernanceToken", address(0));
+        d.oracle = json.readAddressOr(".Oracle", address(0));
+        d.lpNFT = json.readAddressOr(".LPPositionNFT", address(0));
+        d.pairFactory = json.readAddressOr(".PairFactory", address(0));
+        d.samplePair = json.readAddressOr(".SamplePair", address(0));
+        d.lendingPool = json.readAddressOr(".LendingPool", address(0));
+        d.yieldVault = json.readAddressOr(".YieldVault", address(0));
+        d.treasuryProxy = json.readAddressOr(".TreasuryProxy", address(0));
+        d.timelock = json.readAddressOr(".Timelock", address(0));
+        d.governor = json.readAddressOr(".Governor", address(0));
     }
 
     function _writeDeployments(Deployed memory d) internal {

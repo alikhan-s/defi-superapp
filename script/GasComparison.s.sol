@@ -180,6 +180,6 @@ contract GasComparison is Script {
     }
 
     function _emit(string memory op, uint256 gasUsed) internal pure {
-        console.log(string.concat("GASCOMP|", op, "|"), gasUsed);
+        console.log(string.concat("GASCOMP_DEBUG | Op: ", op, " | Units: "), gasUsed);
     }
 }

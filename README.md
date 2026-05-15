@@ -27,20 +27,21 @@ Populated by [script/Deploy.s.sol](script/Deploy.s.sol). Explorer base: `https:/
 
 | Contract | Address | Explorer |
 | --- | --- | --- |
-| GovernanceToken | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
-| ChainlinkPriceOracle | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
-| LPPositionNFT | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
-| PairFactory | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
-| SamplePair (WETH/USDC) | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
-| LendingPool | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
-| YieldVault (yvUSDC) | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
-| TreasuryProxy (UUPS) | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
-| ProtocolTimelock | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
-| ProtocolGovernor | `TBD` | [arbiscan](https://sepolia.arbiscan.io/address/TBD) |
+| GovernanceToken | `0x75126A3c6A49a595246b82a08DA73d7608337C36` | [arbiscan](https://sepolia.arbiscan.io/address/0x75126A3c6A49a595246b82a08DA73d7608337C36) |
+| ChainlinkPriceOracle | `0x65DBbd9B7d2a04474dafAE487557ECCE805f33a9` | [arbiscan](https://sepolia.arbiscan.io/address/0x65DBbd9B7d2a04474dafAE487557ECCE805f33a9) |
+| LPPositionNFT | `0x038F1A0E06E36EF33fdB963CF2DE4570F319eA0c` | [arbiscan](https://sepolia.arbiscan.io/address/0x038F1A0E06E36EF33fdB963CF2DE4570F319eA0c) |
+| PairFactory | `0xf56921ef32f00C65836E99324e350F97C5c39229` | [arbiscan](https://sepolia.arbiscan.io/address/0xf56921ef32f00C65836E99324e350F97C5c39229) |
+| SamplePair (WETH/USDC) | `0xC139a14BCA5e03Da3C3ea6be458A5E592e37BFF4` | [arbiscan](https://sepolia.arbiscan.io/address/0xC139a14BCA5e03Da3C3ea6be458A5E592e37BFF4) |
+| LendingPool | `0x0013766F7fb601E43aF9b4b1F40C9bE667E53205` | [arbiscan](https://sepolia.arbiscan.io/address/0x0013766F7fb601E43aF9b4b1F40C9bE667E53205) |
+| YieldVault (yvUSDC) | `0xfb72FBbA8cbeb5D3C8E5871912A4884B7492C852` | [arbiscan](https://sepolia.arbiscan.io/address/0xfb72FBbA8cbeb5D3C8E5871912A4884B7492C852) |
+| TreasuryProxy (UUPS) | `0x9C0005C1E5d91BadDE2941f021bD8d66748495fe` | [arbiscan](https://sepolia.arbiscan.io/address/0x9C0005C1E5d91BadDE2941f021bD8d66748495fe) |
+| ProtocolTimelock | `0x85dBA7e4Ef173DD5daFcD6977f070bAD6fe2e61C` | [arbiscan](https://sepolia.arbiscan.io/address/0x85dBA7e4Ef173DD5daFcD6977f070bAD6fe2e61C) |
+| ProtocolGovernor | `0xdED11a6Fa7062B7b6422061B54998C4002c2d80b` | [arbiscan](https://sepolia.arbiscan.io/address/0xdED11a6Fa7062B7b6422061B54998C4002c2d80b) |
 
 See [docs/deployment-runbook.md](docs/deployment-runbook.md) for the end-to-end deployment + verification procedure. Source of truth for the addresses is [deployments/421614.json](deployments/421614.json) after a successful broadcast.
 
 **Subgraph:** TBD — populated in Phase 10.
+
 **Frontend:** TBD — populated in Phase 11.
 
 ## Run Locally
