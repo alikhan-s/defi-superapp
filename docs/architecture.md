@@ -10,25 +10,23 @@ This document outlines the high-level architecture, container interactions, sequ
 
 ## 1. System Architecture (C4 Model)
 
+```markdown
 ### 1.1. Level 1: System Context Diagram
 The System Context diagram shows the DeFi Superapp in its broader ecosystem, interacting with end-users, Layer 2 infrastructure, and external decentralized oracle networks.
 
 ```mermaid
-C4Context
-    title System Context Diagram for DeFi Superapp
+flowchart TD
+    User(("DeFi User\n(Trader, Lender, Voter)"))
+    System["DeFi Superapp\n(AMM, Lending, Vault, Gov)"]
+    Arbitrum[("Arbitrum L2\n(Optimistic Rollup)")]
+    Chainlink[("Chainlink DON\n(Price Feeds)")]
+    TheGraph[("The Graph\n(Blockchain Indexer)")]
 
-    Person(user, "DeFi User", "Interacts with the protocol to swap, lend, borrow, and vote.")
-    System(defiApp, "DeFi Superapp", "Provides AMM, Lending, Yield Vault, and Governance services.")
-    
-    System_Ext(arbitrum, "Arbitrum L2", "Optimistic rollup providing cheap, fast execution.")
-    System_Ext(chainlink, "Chainlink DON", "Provides secure, decentralized price feeds.")
-    System_Ext(theGraph, "The Graph", "Indexes on-chain events for fast UI querying.")
-
-    Rel(user, defiApp, "Uses platform via Web3 UI")
-    Rel(defiApp, arbitrum, "Deployed on & settles state to")
-    Rel(defiApp, chainlink, "Consumes price data from")
-    Rel(theGraph, arbitrum, "Indexes block data from")
-    Rel(user, theGraph, "Fetches historical data from")
+    User -- "Uses platform via Web3 UI" --> System
+    User -- "Fetches historical data" --> TheGraph
+    System -- "Deployed on & settles state" --> Arbitrum
+    System -- "Consumes price data" --> Chainlink
+    TheGraph -- "Indexes block data" --> Arbitrum
 
 ```
 
@@ -37,37 +35,36 @@ C4Context
 This diagram drills down into the DeFi Superapp, showing the primary smart contract modules and their interactions.
 
 ```mermaid
-C4Container
-    title Container Diagram for DeFi Superapp
+flowchart TD
+    User(("DeFi User"))
+    Frontend["Web Application\n(React / Next.js)"]
+    Subgraph[("Subgraph\n(GraphQL)")]
+    Oracle[("Chainlink Oracle")]
 
-    Person(user, "DeFi User", "Trader, Lender, Borrower, or Voter")
-    
-    Container(frontend, "Web Application", "React / Next.js", "Provides the user interface.")
-    
-    Boundary(c1, "Smart Contract Protocol") {
-        Container(amm, "AMM Module", "Pair, PairFactory", "Handles token swaps and liquidity.")
-        Container(lending, "Lending Module", "LendingPool", "Overcollateralized borrowing and liquidations.")
-        Container(vault, "Yield Vault", "YieldVault (ERC4626)", "Auto-compounds yields.")
-        Container(gov, "Governance", "Governor, Timelock", "On-chain DAO mechanics.")
-        Container(treasury, "Treasury", "TreasuryV1 (UUPS)", "Holds protocol fees.")
-        Container(tokens, "Token Layer", "ERC20, LP NFT", "Platform tokens and positions.")
-    }
+    subgraph Protocol ["Smart Contract Protocol (Arbitrum)"]
+        direction TB
+        AMM[" AMM Module\n(Pair, Factory)"]
+        Lending["Lending Module\n(LendingPool)"]
+        Vault[" Yield Vault\n(ERC4626)"]
+        Gov[" Governance\n(Governor, Timelock)"]
+        Treasury[" Treasury\n(UUPS)"]
+        Tokens[" Token Layer\n(ERC20, LP NFT)"]
+    end
 
-    ContainerDb(graphNode, "Subgraph", "GraphQL", "Indexed blockchain state.")
-    Container_Ext(oracle, "Chainlink Oracle", "Price Feeds", "External price data.")
+    User -- "Interacts with" --> Frontend
+    Frontend -- "Swaps / Adds Liquidity" --> AMM
+    Frontend -- "Deposits / Borrows" --> Lending
+    Frontend -- "Proposes / Votes" --> Gov
+    Frontend -- "Queries state" --> Subgraph
 
-    Rel(user, frontend, "Interacts with")
-    Rel(frontend, amm, "Swaps / Adds Liquidity")
-    Rel(frontend, lending, "Deposits / Borrows")
-    Rel(frontend, gov, "Proposes / Votes")
-    Rel(amm, tokens, "Transfers")
-    Rel(lending, oracle, "Fetches Prices")
-    Rel(lending, tokens, "Locks Collateral")
-    Rel(vault, lending, "Supplies Idle Assets")
-    Rel(gov, treasury, "Executes Payouts")
-    Rel(amm, treasury, "Sends swap fees to")
-    Rel(graphNode, c1, "Listens to Events")
-    Rel(frontend, graphNode, "Queries state")
+    AMM -- "Transfers" --> Tokens
+    AMM -- "Sends swap fees" --> Treasury
+    Lending -- "Fetches Prices" --> Oracle
+    Lending -- "Locks Collateral" --> Tokens
+    Vault -- "Supplies Idle Assets" --> Lending
+    Gov -- "Executes Payouts" --> Treasury
+
+    Subgraph -. "Listens to Events" .-> Protocol
 
 ```
 
