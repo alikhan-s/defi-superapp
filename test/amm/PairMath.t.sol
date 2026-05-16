@@ -27,7 +27,7 @@ contract PairMathTest is Test {
     }
 
     function test_yulAndSolAgree() public view {
-        uint256 amountIn = 1_000e18;
+        uint256 amountIn = 1000e18;
         uint256 reserveIn = 500_000e18;
         uint256 reserveOut = 750_000e18;
 
