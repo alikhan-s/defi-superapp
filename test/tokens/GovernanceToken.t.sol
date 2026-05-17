@@ -210,4 +210,8 @@ contract GovernanceTokenTest is Test {
         // There is no public mint function; total supply must remain constant.
         assertEq(token.totalSupply(), INITIAL_SUPPLY);
     }
+
+    function test_decimals_is18() public view {
+        assertEq(token.decimals(), 18);
+    }
 }
