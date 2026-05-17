@@ -237,6 +237,60 @@ contract ChainlinkPriceOracleTest is Test {
     }
 
     // -------------------------------------------------------------------------
+    // 9. addFeed guards (zero-address / zero-staleness)
+    // -------------------------------------------------------------------------
+
+    function test_addFeed_rejectsZeroAsset() public {
+        vm.prank(manager);
+        vm.expectRevert(ChainlinkPriceOracle.ZeroAddress.selector);
+        oracle.addFeed(address(0), address(feed8), MAX_STALENESS);
+    }
+
+    function test_addFeed_rejectsZeroFeedAddress() public {
+        vm.prank(manager);
+        vm.expectRevert(ChainlinkPriceOracle.ZeroAddress.selector);
+        oracle.addFeed(ETH, address(0), MAX_STALENESS);
+    }
+
+    function test_addFeed_rejectsZeroStaleness() public {
+        vm.prank(manager);
+        vm.expectRevert(ChainlinkPriceOracle.ZeroStaleness.selector);
+        oracle.addFeed(USDC, address(feed6), 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // 10. updateStaleness guards
+    // -------------------------------------------------------------------------
+
+    function test_updateStaleness_nonExistentFeedReverts() public {
+        vm.prank(manager);
+        vm.expectRevert(ChainlinkPriceOracle.FeedNotConfigured.selector);
+        oracle.updateStaleness(USDC, MAX_STALENESS); // USDC never added
+    }
+
+    function test_updateStaleness_rejectsZeroStaleness() public {
+        vm.prank(manager);
+        vm.expectRevert(ChainlinkPriceOracle.ZeroStaleness.selector);
+        oracle.updateStaleness(ETH, 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // 11. _normalizeTo18 with decimals > 18
+    // -------------------------------------------------------------------------
+
+    function test_getPriceSafe_normalizesAbove18DecimalFeed() public {
+        // 20-decimal feed: price = 1e20 should normalise to 1e18
+        MockAggregator feed20 = new MockAggregator(1e20, 20);
+        address TOKEN20 = makeAddr("TOKEN20");
+
+        vm.prank(manager);
+        oracle.addFeed(TOKEN20, address(feed20), MAX_STALENESS);
+
+        uint256 price = oracle.getPriceSafe(TOKEN20, MAX_STALENESS);
+        assertEq(price, 1e18);
+    }
+
+    // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
 
