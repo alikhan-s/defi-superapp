@@ -50,4 +50,6 @@ jobs:
         run: forge test -vvv
 
       - name: Coverage summary
+        env:
+          ARBITRUM_SEPOLIA_RPC_URL: ${{ secrets.ARBITRUM_SEPOLIA_RPC_URL }}
         run: forge coverage --report summary
