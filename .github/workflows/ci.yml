@@ -45,6 +45,8 @@ jobs:
         run: forge fmt --check
 
       - name: Run tests
+        env:
+          ARBITRUM_SEPOLIA_RPC_URL: ${{ secrets.ARBITRUM_SEPOLIA_RPC_URL }}
         run: forge test -vvv
 
       - name: Coverage summary
