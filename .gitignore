@@ -1,0 +1,37 @@
+# Foundry
+cache/
+out/
+foundry.lock
+
+# Broadcast logs (keep mainnet/testnet, ignore local + dry-runs)
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Coverage
+lcov.info
+coverage/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Docs build artefacts (generated)
+docs/book/
+
+# Deployment artefacts (keep checked-in JSON, ignore tmp files)
+deployments/**/*.tmp
