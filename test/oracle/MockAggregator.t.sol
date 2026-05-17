@@ -7,8 +7,8 @@ import { MockAggregator } from "../../src/oracle/MockAggregator.sol";
 contract MockAggregatorTest is Test {
     MockAggregator internal mock;
 
-    int256 internal constant INIT_PRICE    = 2_500e8;
-    uint8  internal constant INIT_DECIMALS = 8;
+    int256 internal constant INIT_PRICE = 2500e8;
+    uint8 internal constant INIT_DECIMALS = 8;
 
     function setUp() public {
         mock = new MockAggregator(INIT_PRICE, INIT_DECIMALS);
@@ -28,15 +28,15 @@ contract MockAggregatorTest is Test {
         (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
             mock.getRoundData(1);
 
-        assertEq(roundId,         1);
-        assertEq(answer,          INIT_PRICE);
-        assertGt(startedAt,       0);
-        assertGt(updatedAt,       0);
+        assertEq(roundId, 1);
+        assertEq(answer, INIT_PRICE);
+        assertGt(startedAt, 0);
+        assertGt(updatedAt, 0);
         assertEq(answeredInRound, 1);
     }
 
     function test_mock_setPrice() public {
-        int256 newPrice = 3_000e8;
+        int256 newPrice = 3000e8;
         mock.setPrice(newPrice);
 
         (, int256 answer,,,) = mock.latestRoundData();
@@ -63,8 +63,8 @@ contract MockAggregatorTest is Test {
 
         (uint80 roundId, int256 answer,, uint256 updatedAt,) = mock.latestRoundData();
 
-        assertEq(roundId,   1);
-        assertEq(answer,    1e6);
+        assertEq(roundId, 1);
+        assertEq(answer, 1e6);
         assertEq(updatedAt, 999);
         assertEq(mock.decimals(), 6);
     }
