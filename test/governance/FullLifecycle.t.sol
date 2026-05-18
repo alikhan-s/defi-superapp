@@ -71,7 +71,7 @@ contract FullLifecycleTest is Test {
 
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
-        timelock.renounceRole(timelock.TIMELOCK_ADMIN_ROLE(), address(this));
+        timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), address(this));
 
         treasury.grantRole(treasury.DEFAULT_ADMIN_ROLE(), address(timelock));
         treasury.renounceRole(treasury.DEFAULT_ADMIN_ROLE(), address(this));
