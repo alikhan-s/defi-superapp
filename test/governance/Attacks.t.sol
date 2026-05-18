@@ -59,7 +59,6 @@ contract GovernanceAttacksTest is Test {
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
         timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), address(this));
     }
-    }
 
     function test_RevertSubThresholdPropose() public {
         token.mint(attacker, 1);
