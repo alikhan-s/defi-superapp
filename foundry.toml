@@ -15,7 +15,7 @@ evm_version = "cancun"
 
 # FS permissions
 fs_permissions = [
-  { access = "read", path = "./docs" },
+  { access = "read-write", path = "./docs" },
   { access = "read", path = "./deployments" },
 ]
 
