@@ -4,7 +4,23 @@ pragma solidity 0.8.24;
 import { Test } from "forge-std/Test.sol";
 import { Pair } from "../../src/amm/Pair.sol";
 import { LPPositionNFT } from "../../src/tokens/LPPositionNFT.sol";
+import { IPairCallee } from "../../src/amm/IPairCallee.sol";
 import { MockERC20 } from "./helpers/MockERC20.sol";
+
+/// @dev Flash-swap callee that repays token0 with the 0.3 % fee required by the K invariant.
+///      Repay amount: ceil(amount0 * 1000 / 997).
+contract FlashCallee is IPairCallee {
+    MockERC20 internal immutable repayToken;
+
+    constructor(address token) {
+        repayToken = MockERC20(token);
+    }
+
+    function pairCall(address, uint256 amount0, uint256, bytes calldata) external override {
+        uint256 repay = (amount0 * 1000 + 996) / 997;
+        repayToken.mint(msg.sender, repay);
+    }
+}
 
 contract PairTest is Test {
     // -------------------------------------------------------------------------
@@ -384,5 +400,108 @@ contract PairTest is Test {
         (uint112 r0, uint112 r1,) = pair.getReserves();
         assertEq(r0, INIT_AMOUNT);
         assertEq(r1, 50_000e18);
+    }
+
+    // -------------------------------------------------------------------------
+    // 9. Branch-coverage gap tests
+    // -------------------------------------------------------------------------
+
+    // L162 — mint: liquidity == 0 on subsequent mint (no tokens sent)
+    function test_mint_subsequentZeroAmountReverts() public {
+        _addLiquidity(alice, INIT_AMOUNT, INIT_AMOUNT);
+
+        vm.expectRevert(Pair.InsufficientLiquidity.selector);
+        pair.mint(alice); // no tokens sent → amount0 = amount1 = 0 → liquidity = 0
+    }
+
+    // L197 — burn: liquidityOf[tokenId] == 0
+    function test_burn_liquidityZeroReverts() public {
+        _addLiquidity(alice, INIT_AMOUNT, INIT_AMOUNT);
+
+        // Mint an NFT directly via lpNFT (bypassing the pair) so liquidityOf is never set
+        vm.prank(admin);
+        lpNFT.grantRole(MINTER_ROLE, address(this));
+        uint256 orphanId = lpNFT.mint(alice, address(pair), 0);
+
+        vm.prank(alice);
+        vm.expectRevert(Pair.InsufficientLiquidity.selector);
+        pair.burn(orphanId, alice);
+    }
+
+    // L239 — swap: to == address(0)
+    function test_swap_zeroToAddressReverts() public {
+        _addLiquidity(alice, INIT_AMOUNT, INIT_AMOUNT);
+
+        token0.mint(address(pair), 1000e18);
+        vm.expectRevert(Pair.ZeroAddress.selector);
+        pair.swap(0, 1, address(0), 0, "");
+    }
+
+    // L249 — swap: amount0Out > 0 branch (send token0 out)
+    function test_swap_token0Out_correctOutput() public {
+        _addLiquidity(alice, INIT_AMOUNT, INIT_AMOUNT);
+
+        (uint112 r0, uint112 r1,) = pair.getReserves();
+        uint256 amtIn = 1000e18;
+        uint256 amtInFee = amtIn * 997;
+        uint256 expectedOut = (amtInFee * uint256(r0)) / (uint256(r1) * 1000 + amtInFee);
+
+        token1.mint(address(pair), amtIn);
+        pair.swap(expectedOut, 0, alice, 0, "");
+
+        assertEq(token0.balanceOf(alice), expectedOut);
+    }
+
+    // L253 — swap: flash-swap callback branch (data.length > 0)
+    function test_swap_flashCallback() public {
+        _addLiquidity(alice, INIT_AMOUNT, INIT_AMOUNT);
+
+        (uint112 r0,,) = pair.getReserves();
+        uint256 borrowAmount = uint256(r0) / 100; // borrow 1% of reserve0
+
+        FlashCallee callee = new FlashCallee(address(token0));
+
+        // Non-empty data triggers the flash callback; callee repays with fee
+        pair.swap(borrowAmount, 0, address(callee), 0, bytes("x"));
+
+        // After repayment pair's K is satisfied; reserves updated
+        (uint112 nr0,,) = pair.getReserves();
+        assertGt(uint256(nr0), uint256(r0) - borrowAmount);
+    }
+
+    // L273 — _settleSwap: amount0In == 0 && amount1In == 0
+    function test_swap_noInputTokensReverts() public {
+        _addLiquidity(alice, INIT_AMOUNT, INIT_AMOUNT);
+
+        // Request output but send no input tokens → inferred inputs are 0
+        vm.expectRevert(Pair.InsufficientOutput.selector);
+        pair.swap(1000e18, 0, alice, 0, "");
+    }
+
+    // L290 — skim: to == address(0)
+    function test_skim_zeroAddressReverts() public {
+        vm.expectRevert(Pair.ZeroAddress.selector);
+        pair.skim(address(0));
+    }
+
+    // L294 — skim: excess1 > 0 branch (token1 excess)
+    function test_skim_token1Excess() public {
+        _addLiquidity(alice, INIT_AMOUNT, INIT_AMOUNT);
+
+        uint256 excess = 500e18;
+        token1.mint(address(pair), excess);
+
+        pair.skim(bob);
+
+        assertEq(token1.balanceOf(bob), excess, "bob receives excess token1");
+    }
+
+    // L319 — _update: balance exceeds uint112 max → Locked
+    function test_update_lockedReverts() public {
+        _addLiquidity(alice, INIT_AMOUNT, INIT_AMOUNT);
+
+        token0.mint(address(pair), type(uint112).max);
+        vm.expectRevert(Pair.Locked.selector);
+        pair.sync();
     }
 }
