@@ -1,6 +1,6 @@
 pragma solidity ^0.8.24;
 
-import { Test, console } from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import { ProtocolTimelock } from "../../src/governance/ProtocolTimelock.sol";
 import { ProtocolGovernor } from "../../src/governance/ProtocolGovernor.sol";
 import { IVotes } from "@openzeppelin/contracts/governance/utils/IVotes.sol";
@@ -75,6 +75,8 @@ contract FullLifecycleTest is Test {
 
         treasury.grantRole(treasury.DEFAULT_ADMIN_ROLE(), address(timelock));
         treasury.renounceRole(treasury.DEFAULT_ADMIN_ROLE(), address(this));
+
+        vm.roll(block.number + 1);
     }
 
     function test_GovernanceLifecycle() public {
@@ -92,12 +94,8 @@ contract FullLifecycleTest is Test {
         vm.prank(alice);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        console.log("State after propose: Pending", uint256(governor.state(proposalId)));
-
         vm.warp(block.timestamp + 10 days);
         vm.roll(block.number + 345_601);
-
-        console.log("State before voting: Active", uint256(governor.state(proposalId)));
 
         vm.prank(alice);
         governor.castVote(proposalId, 1);
@@ -109,19 +107,13 @@ contract FullLifecycleTest is Test {
         vm.warp(block.timestamp + 20 days);
         vm.roll(block.number + 2_419_201);
 
-        console.log("State after voting: Succeeded", uint256(governor.state(proposalId)));
-
         bytes32 descriptionHash = keccak256(bytes(description));
         governor.queue(targets, values, calldatas, descriptionHash);
-
-        console.log("State after queue: Queued", uint256(governor.state(proposalId)));
 
         vm.warp(block.timestamp + 3 days);
         vm.roll(block.number + 100_000);
 
         governor.execute(targets, values, calldatas, descriptionHash);
-
-        console.log("State after execute: Executed", uint256(governor.state(proposalId)));
 
         assertEq(recipient.balance, 1 ether);
 

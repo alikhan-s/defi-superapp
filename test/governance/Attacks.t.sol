@@ -58,12 +58,15 @@ contract GovernanceAttacksTest is Test {
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
         timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), address(this));
+
+        vm.roll(block.number + 1);
     }
 
     function test_RevertSubThresholdPropose() public {
         token.mint(attacker, 1);
         vm.prank(attacker);
         token.delegate(attacker);
+        vm.roll(block.number + 1);
 
         address[] memory targets = new address[](1);
         targets[0] = address(treasury);
@@ -81,6 +84,7 @@ contract GovernanceAttacksTest is Test {
         token.mint(attacker, 20_000 ether);
         vm.prank(attacker);
         token.delegate(attacker);
+        vm.roll(block.number + 1);
 
         address[] memory targets = new address[](1);
         targets[0] = address(treasury);
@@ -142,6 +146,7 @@ contract GovernanceAttacksTest is Test {
         token.mint(attacker, 20_000 ether);
         vm.prank(attacker);
         token.delegate(attacker);
+        vm.roll(block.number + 1);
 
         address[] memory targets = new address[](1);
         targets[0] = address(treasury);
