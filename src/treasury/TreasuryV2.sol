@@ -1,7 +1,7 @@
 pragma solidity ^0.8.24;
-import {TreasuryV1} from "./TreasuryV1.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { TreasuryV1 } from "./TreasuryV1.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract TreasuryV2 is TreasuryV1 {
     using SafeERC20 for IERC20;
@@ -10,7 +10,11 @@ contract TreasuryV2 is TreasuryV1 {
 
     event BatchWithdrawal(address indexed to, uint256 tokensCount, uint256 timestamp);
 
-    function batchWithdrawERC20(address[] calldata tokens, address to, uint256[] calldata amounts) external onlyRole(FUND_MANAGER_ROLE) whenNotPaused {
+    function batchWithdrawERC20(address[] calldata tokens, address to, uint256[] calldata amounts)
+        external
+        onlyRole(FUND_MANAGER_ROLE)
+        whenNotPaused
+    {
         if (tokens.length != amounts.length) revert("Length mismatch");
         if (to == address(0)) revert ZeroAddress();
 
