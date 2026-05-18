@@ -33,23 +33,12 @@ contract YieldVaultFuzzTest is Test {
         oracle.addFeed(address(weth), address(wethFeed), 86_400);
         oracle.addFeed(address(usdc), address(usdcFeed), 86_400);
 
-        pool = new LendingPool(
-            address(weth),
-            address(usdc),
-            address(oracle),
-            8000, 1000, 100, 1000, admin
-        );
+        pool = new LendingPool(address(weth), address(usdc), address(oracle), 8000, 1000, 100, 1000, admin);
 
-        vault = new YieldVault(
-            usdc,
-            ILendingPool(address(pool)),
-            "Yield Vault",
-            "yvUSDC",
-            admin
-        );
+        vault = new YieldVault(usdc, ILendingPool(address(pool)), "Yield Vault", "yvUSDC", admin);
 
         usdc.mint(user, type(uint128).max);
-        
+
         vm.prank(user);
         usdc.approve(address(vault), type(uint256).max);
     }
@@ -59,7 +48,7 @@ contract YieldVaultFuzzTest is Test {
 
         vm.startPrank(user);
         uint256 shares = vault.deposit(depositAmt, user);
-        
+
         uint256 withdrawn = vault.withdraw(depositAmt, user, user);
         vm.stopPrank();
 
@@ -72,13 +61,13 @@ contract YieldVaultFuzzTest is Test {
         assets = bound(assets, 1e6, 1_000_000 * 1e6);
 
         uint256 pShares = vault.previewDeposit(assets);
-        
+
         vm.prank(user);
         uint256 mShares = vault.deposit(assets, user);
 
         // Preview should not under-estimate shares given to vault?
-        // Actually, ERC4626 standard requires previewDeposit to be INCLUSIVE of fees, meaning it is an EXACT prediction.
-        // It should match exactly or favor the vault. 
+        // Actually, ERC4626 standard requires previewDeposit to be INCLUSIVE of fees, meaning it is an EXACT
+        // prediction. It should match exactly or favor the vault.
         // We favor the vault by minting FEWER shares. So mShares <= pShares is not strictly required if exact.
         assertEq(pShares, mShares);
     }
