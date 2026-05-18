@@ -44,6 +44,9 @@ contract LendingPool is ReentrancyGuard, Pausable, AccessControl {
     uint256 public borrowIndex;
     uint256 public lastUpdate;
 
+    uint256 public totalLiquidityShares;
+    mapping(address => uint256) public liquidityShares;
+
     error InsufficientCollateral();
     error HealthFactorTooLow();
     error NotLiquidatable();
@@ -58,6 +61,8 @@ contract LendingPool is ReentrancyGuard, Pausable, AccessControl {
         address indexed liquidator, address indexed user, uint256 debtCovered, uint256 collateralLiquidated
     );
     event InterestAccrued(uint256 newTotalDebt, uint256 newBorrowIndex);
+    event LiquiditySupplied(address indexed user, uint256 amount, uint256 shares);
+    event LiquidityWithdrawn(address indexed user, uint256 amount, uint256 shares);
 
     constructor(
         address _collateralAsset,
@@ -120,6 +125,72 @@ contract LendingPool is ReentrancyGuard, Pausable, AccessControl {
         totalDebt = newDebt;
 
         emit InterestAccrued(totalDebt, borrowIndex);
+    }
+
+    function supply(uint256 amount) external nonReentrant whenNotPaused {
+        if (amount == 0) revert ZeroAmount();
+        accrueInterest();
+
+        uint256 poolAssets = IERC20(debtAsset).balanceOf(address(this)) + totalDebt;
+        uint256 shares = totalLiquidityShares == 0 ? amount : (amount * totalLiquidityShares) / poolAssets;
+
+        liquidityShares[msg.sender] += shares;
+        totalLiquidityShares += shares;
+
+        IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), amount);
+        emit LiquiditySupplied(msg.sender, amount, shares);
+    }
+
+    function withdraw(uint256 shares) external nonReentrant whenNotPaused returns (uint256 amount) {
+        if (shares == 0) revert ZeroAmount();
+        accrueInterest();
+
+        uint256 poolAssets = IERC20(debtAsset).balanceOf(address(this)) + totalDebt;
+        amount = (shares * poolAssets) / totalLiquidityShares;
+
+        liquidityShares[msg.sender] -= shares;
+        totalLiquidityShares -= shares;
+
+        if (IERC20(debtAsset).balanceOf(address(this)) < amount) revert TransferFailed();
+
+        IERC20(debtAsset).safeTransfer(msg.sender, amount);
+        emit LiquidityWithdrawn(msg.sender, amount, shares);
+    }
+
+    function withdrawAssets(uint256 amount) external nonReentrant whenNotPaused returns (uint256 shares) {
+        if (amount == 0) revert ZeroAmount();
+        accrueInterest();
+
+        uint256 poolAssets = IERC20(debtAsset).balanceOf(address(this)) + totalDebt;
+        shares = (amount * totalLiquidityShares + poolAssets - 1) / poolAssets; // round up shares
+
+        liquidityShares[msg.sender] -= shares;
+        totalLiquidityShares -= shares;
+
+        if (IERC20(debtAsset).balanceOf(address(this)) < amount) revert TransferFailed();
+
+        IERC20(debtAsset).safeTransfer(msg.sender, amount);
+        emit LiquidityWithdrawn(msg.sender, amount, shares);
+    }
+
+    function getSupplyValue(address user) public view returns (uint256) {
+        if (totalLiquidityShares == 0) return 0;
+        
+        uint256 simulatedTotalDebt = totalDebt;
+        if (block.timestamp > lastUpdate && totalDebt > 0) {
+            uint256 dt = block.timestamp - lastUpdate;
+            uint256 availableLiquidity = IERC20(debtAsset).balanceOf(address(this));
+            uint256 utilizationRate = 0;
+            if (availableLiquidity + totalDebt > 0) {
+                utilizationRate = (totalDebt * WAD) / (availableLiquidity + totalDebt);
+            }
+            uint256 borrowRateBPS = baseRate + (utilizationRate * slope1) / WAD;
+            uint256 interestFactor = (borrowRateBPS * WAD * dt) / (BPS_DENOMINATOR * SECONDS_PER_YEAR);
+            simulatedTotalDebt += (totalDebt * interestFactor) / WAD;
+        }
+
+        uint256 poolAssets = IERC20(debtAsset).balanceOf(address(this)) + simulatedTotalDebt;
+        return (liquidityShares[user] * poolAssets) / totalLiquidityShares;
     }
 
     function depositCollateral(uint256 amount) external payable nonReentrant whenNotPaused {
