@@ -1,4 +1,4 @@
-```markdown
+
 # DeFi Super-App Protocol
 
 > A modular, upgradeable DeFi protocol covering tokens, oracles, AMM, lending, vaults, treasury, and governance — built with Foundry and OpenZeppelin.
