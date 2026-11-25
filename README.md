@@ -1,13 +1,12 @@
-
 # DeFi Super-App Protocol
 
-> A modular, upgradeable DeFi protocol covering tokens, oracles, AMM, lending, vaults, treasury, and governance — built with Foundry and OpenZeppelin.
+> A modular, upgradeable DeFi protocol covering tokens, oracles, AMM, lending, vaults, treasury, and governance — built with Foundry, OpenZeppelin, React/Wagmi, and The Graph.
 
 ## Overview
 
-The DeFi Super-App Protocol is a comprehensive, full-stack Decentralized Finance ecosystem designed for maximum efficiency, security, and true decentralization. It integrates an Automated Market Maker (AMM) with concentrated liquidity mechanics, an overcollateralized Lending engine, an auto-compounding ERC-4626 Yield Vault, and a fully on-chain DAO Governance system.
+The DeFi Super-App Protocol is a full-stack Decentralized Finance ecosystem designed for modularity, security, and on-chain decentralization. It integrates a constant-product (`x * y = k`) Automated Market Maker (AMM) with ERC-721 LP position NFTs, inline Yul math optimizations, and flash swaps; an overcollateralized Lending engine backed by Chainlink price feeds; an auto-compounding ERC-4626 Yield Vault; a UUPS-upgradeable Treasury; and an on-chain DAO Governance system with Timelock execution.
 
-Designed as a modern DeFi primitive, the Superapp leverages Arbitrum's Layer 2 scalability and Chainlink's decentralized oracle networks to provide lightning-fast, low-cost financial services. The architecture strictly separates concerns, ensuring upgradeability through UUPS proxies where necessary while keeping core AMM pools immutable and trustless.
+Built for Arbitrum's Layer 2 scalability, the architecture separates immutable core AMM pools from upgradeable treasury modules controlled by DAO governance.
 
 ## Architecture
 
@@ -15,15 +14,19 @@ Designed as a modern DeFi primitive, the Superapp leverages Arbitrum's Layer 2 s
 src/
 ├── tokens/      # ERC-20 / ERC-721 / ERC-4626 token contracts
 ├── oracle/      # Chainlink price feed adapters and TWAP helpers
-├── amm/         # Automated market maker (constant-product + concentrated)
-├── lending/     # Collateralised lending pools and interest rate models
+├── amm/         # Constant-product AMM, LP Position NFTs, flash swaps & Yul math
+├── lending/     # Overcollateralized lending pools and interest rate models
 ├── vault/       # ERC-4626 yield vaults and strategy layer
-├── treasury/    # Protocol fee collection and allocation
-└── governance/  # On-chain governor and timelock
-
+├── treasury/    # UUPS-upgradeable protocol fee collection and allocation
+└── governance/  # On-chain OpenZeppelin Governor and Timelock
 ```
 
-*See the detailed system architecture, C4 diagrams, and Storage Layouts in [docs/architecture.md](https://www.google.com/search?q=docs/architecture.md).*
+### Documentation & Security Reports
+
+- **System Architecture & Storage Layouts:** [docs/architecture.md](docs/architecture.md) · [docs/storage-layout-treasury.md](docs/storage-layout-treasury.md)
+- **Security & Static Analysis:** [docs/security-audit.md](docs/security-audit.md) · [docs/slither-findings.md](docs/slither-findings.md) · [docs/governance-attacks.md](docs/governance-attacks.md)
+- **Testing & Gas Benchmarks:** [docs/test-inventory.md](docs/test-inventory.md) · [docs/coverage-report.md](docs/coverage-report.md) · [docs/gas-report.md](docs/gas-report.md) · [docs/gas-yul-vs-solidity.md](docs/gas-yul-vs-solidity.md)
+- **Operations & Deployment:** [docs/deployment-runbook.md](docs/deployment-runbook.md) · [docs/post-deployment-report.md](docs/post-deployment-report.md)
 
 ## Deployed Contracts — Arbitrum Sepolia (Chain ID `421614`)
 
@@ -69,10 +72,9 @@ npx graph deploy --studio defi-superapp --version-label v0.0.1
 Clone the repository and install dependencies:
 
 ```bash
-git clone --recurse-submodules [https://github.com/alikhan-s/defi-superapp.git](https://github.com/alikhan-s/defi-superapp.git)
+git clone --recurse-submodules https://github.com/alikhan-s/defi-superapp.git
 cd defi-superapp
 forge install
-
 ```
 
 Build and test the smart contracts:

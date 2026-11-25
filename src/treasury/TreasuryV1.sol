@@ -23,6 +23,11 @@ contract TreasuryV1 is Initializable, UUPSUpgradeable, AccessControlUpgradeable,
     error InsufficientBalance();
     error ETHTransferFailed();
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(address admin) public initializer {
         __AccessControl_init();
         __Pausable_init();
