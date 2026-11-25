@@ -101,11 +101,3 @@ Execute the deployment script with broadcasting and contract verification:
 forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast --verify --etherscan-api-key $ARBISCAN_API_KEY
 
 ```
-
-## Team & Credits
-
-Developed with love by:
-
-* **Yeraly Zhumagul**
-* **Alikhan**
-* **Alizhan**
